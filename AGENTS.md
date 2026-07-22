@@ -24,6 +24,12 @@ They must not claim improvement from extra prose, extra signals, self-review,
 or model agreement alone. Preserve a simple stable kernel; version and test
 every evolved harness outside its parent before activation.
 
+Research comes first. Per-wave gates may inspect mathematical evidence only to
+decide whether the frozen goal warrants another wave. Harness reflection runs
+once, after all research waves and terminal memory reconciliation. It may
+propose a versioned descendant but cannot alter the run that generated its
+evidence or activate its own proposal.
+
 ## Non-negotiable rules
 
 1. Every run has one problem pack, one bounded goal, and finite budgets.

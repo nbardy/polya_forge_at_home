@@ -5,7 +5,8 @@
 - Added deterministic active-goal preflight before model invocation.
 - Changed wall time from a per-call timeout to one global run deadline.
 - Added bounded iterative research waves with manager-directed parallel
-  fan-out, independent verification, and receipt-gated continuation.
+  fan-out, independent verification, and mathematical receipt-gated
+  continuation, followed by one terminal harness reflection.
 - Reject zero-work initial launches and prevent export of runs without an
   independently verified frontier delta.
 - Added a dedicated deterministic controller fixture and preserved v0.1 as an

@@ -26,12 +26,15 @@ problem pack + bounded goal
       verify             independent audit of each builder
         |
         v
-      review             Pólya receipt + engine-change proposal
+       gate              mathematical Pólya receipt only
         | positive receipt backed by an independent PASS
         +-------------------------> next manage wave
         |
         v
      remember            terminal problem-local memory proposal
+        |
+        v
+      review             one post-run harness reflection
         |
         v
   sanitized bundle      public, non-executable contribution unit
@@ -67,14 +70,14 @@ edits the active parent in place. See `LEAN_CORE.md`.
 ## 4. State machine
 
 ```text
-CREATED -> MANAGE -> EXECUTE_VERIFY -> REVIEW --+-> MANAGE
+CREATED -> MANAGE -> EXECUTE_VERIFY -> GATE -----+-> MANAGE
                      |                 |         |
-                     |                 +-> REMEMBER -> CLOSED
+                     |                 +-> REMEMBER -> REVIEW -> CLOSED
                      +----------------------- FAILED
 ```
 
 Each completed role has a durable artifact. Every wave freezes its manager
-allocation, builder/verifier branches, and review before a successor wave may
+allocation, builder/verifier branches, and gate before a successor wave may
 start. Resume starts at the first stage whose required terminal artifact is
 absent. Failed attempts are retained;
 rerunning them creates a new attempt number in a later engine version.
@@ -101,7 +104,7 @@ events.jsonl
 snapshot/
 briefs/
 attempts/<brief-id>/{execute,verify}/
-waves/WNN/{manager,review,wave}.json
+waves/WNN/{manager,gate,wave}.json
 memory/
 review/
 published/manifest.edn

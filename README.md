@@ -87,9 +87,10 @@ afterthoughts.
 
 - Discover and validate multiple problem packs.
 - Validate bounded goal contracts.
-- Run bounded, iterative `manage -> parallel execute/verify -> review` waves
-  with Codex, followed by one durable memory reconciliation.
-- Continue only when an independent verifier and a positive Pólya receipt
+- Run bounded, iterative `manage -> parallel execute/verify -> progress gate`
+  waves with Codex, followed by durable memory reconciliation and one terminal
+  harness review.
+- Continue only when an independent verifier and a positive wave receipt
   support a non-duplicative next research wave.
 - Keep agent work inside per-run attempt directories.
 - Checkpoint each stage and resume interrupted rounds.

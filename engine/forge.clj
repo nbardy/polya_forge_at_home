@@ -179,8 +179,8 @@
         config (read-edn (child root "version.edn"))]
     (when-not (= (active-version) (:version config))
       (fail! "ACTIVE_VERSION disagrees with version.edn"))
-    (when-not (= #{:manage :execute :verify :remember :review}
-                 (set (keys (:capabilities config))))
+    (when-not (every? (set (keys (:capabilities config)))
+                      #{:manage :execute :verify :remember :review})
       (fail! "Engine version lacks required capabilities"))
     (doseq [[role {:keys [prompt schema]}] (:capabilities config)]
       (let [prompt-file (require-file! (safe-relative! root prompt))
@@ -367,9 +367,9 @@
                                                 :first_invalid_or_open_line :evidence
                                                 :failure_scope :surviving_core :reopening_test])})
                      (:branches wave))
-               :review (select-keys (:review wave)
-                                    [:mathematical_progress :polya_receipt
-                                     :continue_research :next_open_line :next_strategy])})
+               :gate (select-keys (:gate wave)
+                                  [:mathematical_progress :polya_receipt
+                                   :continue_research :next_open_line :next_strategy])})
             waves)}
      {:pretty true})))
 
@@ -439,21 +439,27 @@
     {:run_summary "Deterministic controller fixture completed."
      :helpful_prior_work [] :always_on_candidates [] :demotions []
      :searchable_additions [] :quarantines [] :withholding_rules []}
-    :review
+    :gate
     {:mathematical_progress "The deterministic fixture added a verified controller regression asset."
-     :process_quality "All five capabilities produced structured artifacts."
      :polya_receipt {:advanced_first_open_line false :removed_hypothesis false
                      :killed_route_class false :side_theorem false
                      :reusable_research_asset true
                      :supporting_brief_ids ["FIXTURE"]
                      :explanation "Verified controller fixture only; no mathematical claim."}
-     :continue_research (= task-id "W01-REVIEW")
-     :next_open_line (if (= task-id "W01-REVIEW")
+     :continue_research (= task-id "W01-GATE")
+     :next_open_line (if (= task-id "W01-GATE")
                        "Exercise the successor-wave checkpoint."
                        "No mathematical successor; retain as a controller regression.")
-     :next_strategy (if (= task-id "W01-REVIEW")
+     :next_strategy (if (= task-id "W01-GATE")
                       "Authorize exactly one non-duplicative successor fixture wave."
-                      "Stop after the second verified fixture wave.")
+                      "Stop after the second verified fixture wave.")}
+    :review
+    {:mathematical_progress "No mathematics claimed; two verified controller waves completed."
+     :process_quality "All six capabilities produced ordered structured artifacts."
+     :polya_receipt {:advanced_first_open_line false :removed_hypothesis false
+                     :killed_route_class false :side_theorem false
+                     :reusable_research_asset true
+                     :explanation "Verified controller fixture only; no mathematical claim."}
      :engine_assessment "The deterministic path completed."
      :engine_changes []}))
 
@@ -543,7 +549,7 @@
 
 (defn affordable-brief-limit [ctx]
   (max 0 (min (:brief-limit ctx)
-              (quot (- (:max-invocations ctx) @(:invocations ctx) 3) 2))))
+              (quot (- (:max-invocations ctx) @(:invocations ctx) 4) 2))))
 
 (defn manage! [ctx wave prior-waves]
   (let [label (wave-label wave)
@@ -613,30 +619,35 @@
   (let [prompt (template (slurp (prompt-file :remember)) {:RUN_SUMMARY (run-summary ctx waves)})]
     (invoke! ctx :remember "MEMORY" prompt)))
 
-(defn review-wave! [ctx wave branches]
+(defn gate-wave! [ctx wave branches]
   (let [label (wave-label wave)
-        result-file (child (:run-path ctx) "waves" label "review.json")
+        result-file (child (:run-path ctx) "waves" label "gate.json")
         summary (json/generate-string {:wave wave :branches branches} {:pretty true})
-        prompt (template (slurp (prompt-file :review)) {:RUN_SUMMARY summary})]
+        prompt (template (slurp (prompt-file :gate)) {:RUN_SUMMARY summary})]
     (if (.isFile result-file)
       (read-json result-file)
-      (let [review (invoke! ctx :review (str label "-REVIEW") prompt)]
-        (write-json! result-file review)
-        review))))
+      (let [gate (invoke! ctx :gate (str label "-GATE") prompt)]
+        (write-json! result-file gate)
+        gate))))
+
+(defn review! [ctx waves memory]
+  (let [summary (json/generate-string {:waves waves :memory memory} {:pretty true})
+        prompt (template (slurp (prompt-file :review)) {:RUN_SUMMARY summary})]
+    (invoke! ctx :review "REVIEW" prompt)))
 
 (def receipt-progress-keys
   [:advanced_first_open_line :removed_hypothesis :killed_route_class
    :side_theorem :reusable_research_asset])
 
-(defn positive-receipt? [review]
-  (boolean (some true? (map #(get-in review [:polya_receipt %]) receipt-progress-keys))))
+(defn positive-receipt? [gate]
+  (boolean (some true? (map #(get-in gate [:polya_receipt %]) receipt-progress-keys))))
 
 (defn verified-progress? [wave]
-  (let [supporting (set (get-in wave [:review :polya_receipt :supporting_brief_ids]))
+  (let [supporting (set (get-in wave [:gate :polya_receipt :supporting_brief_ids]))
         passed (set (for [branch (:branches wave)
                           :when (= "PASS" (get-in branch [:verifier :verdict]))]
                       (:id branch)))]
-    (and (positive-receipt? (:review wave))
+    (and (positive-receipt? (:gate wave))
          (seq supporting)
          (every? passed supporting))))
 
@@ -688,12 +699,12 @@
   (- (:max-invocations ctx) @(:invocations ctx)))
 
 (defn wave-cost-after-manager [briefs]
-  (+ (* 2 (count briefs)) 1 1)) ; builders/verifiers + wave review + final memory
+  (+ (* 2 (count briefs)) 1 1 1)) ; branch pairs + gate + memory + final review
 
 (defn continuation-authorized? [ctx wave-value]
   (and (< (:wave wave-value) (:max-waves ctx))
-       (>= (remaining-invocations ctx) 5) ; manager + one branch pair + review + memory
-       (:continue_research (:review wave-value))
+       (>= (remaining-invocations ctx) 6) ; manager + branch pair + gate + memory + review
+       (:continue_research (:gate wave-value))
        (verified-progress? wave-value)))
 
 (defn require-initial-briefs! [prior-waves manager]
@@ -705,7 +716,8 @@
 (defn close-run! [ctx waves stop-reason]
   (update-state! ctx {:state "REMEMBER" :wave_count (count waves)})
   (let [memory (remember! ctx waves)
-        review (:review (last waves))
+        _ (update-state! ctx {:state "REVIEW" :wave_count (count waves)})
+        review (review! ctx waves memory)
         manifest (publish-run! ctx waves memory review)
         meaningful (boolean (some verified-progress? waves))]
     (update-state! ctx {:state "CLOSED" :ended_at (human-time)
@@ -723,7 +735,7 @@
         (if (and prior (not (continuation-authorized? ctx prior)))
           (close-run! ctx waves
                       (cond
-                        (not (:continue_research (:review prior))) "review-stopped"
+                        (not (:continue_research (:gate prior))) "gate-stopped"
                         (not (verified-progress? prior)) "no-verified-frontier-delta"
                         (>= (:wave prior) (:max-waves ctx)) "wave-budget"
                         :else "invocation-budget"))
@@ -743,10 +755,10 @@
                                       :brief_count (+ (reduce + 0 (map #(count (:branches %)) waves))
                                                       (count briefs))})
                   (let [branches (execute-all! ctx wave briefs)]
-                    (update-state! ctx {:state "REVIEW" :current_wave wave})
-                    (let [review (review-wave! ctx wave branches)
+                    (update-state! ctx {:state "GATE" :current_wave wave})
+                    (let [gate (gate-wave! ctx wave branches)
                           wave-value (write-wave! ctx {:wave wave :manager manager
-                                                       :branches branches :review review})]
+                                                       :branches branches :gate gate})]
                       (recur (conj waves wave-value)))))))))))
     (catch Exception error
       (event! ctx {:event_type "round.failed" :error (.getMessage error) :data (ex-data error)})
@@ -770,9 +782,9 @@
         preflight (goal-preflight problem goal)
         _ (when-not (:launchable preflight)
             (fail! "Goal failed deterministic launch preflight" preflight))
-        _ (when (< (:max-invocations opts) 5)
-            (fail! "Goal cannot fund one manager, builder, verifier, review, and memory"
-                   {:minimum 5 :requested (:max-invocations opts)}))
+        _ (when (< (:max-invocations opts) 6)
+            (fail! "Goal cannot fund manager, builder, verifier, gate, memory, and review"
+                   {:minimum 6 :requested (:max-invocations opts)}))
         run-id (str (timestamp) "_" (format "%06d" (mod (System/nanoTime) 1000000))
                     "_" problem-id "_" (safe-slug (.getName ^File (:file goal))))
         run-path (ensure-dir! (child runs-root run-id))
@@ -942,8 +954,9 @@
      :goal (canonical-path (:file goal)) :goal_hash (:hash goal)
      :engine_version (active-version)
      :preflight preflight
-     :plan ["manage" "parallel execute + independent verify" "review progress gate"
-            "iterate while verified progress and budget remain" "remember" "export"]
+     :plan ["manage" "parallel execute + independent verify" "mathematical progress gate"
+            "iterate while verified progress and budget remain" "remember"
+            "terminal harness review" "export"]
      :budgets (select-keys opts [:workers :brief-limit :max-invocations
                                  :max-waves :timeout-minutes])}))
 
@@ -981,9 +994,9 @@
       (let [ctx {:max-waves 3 :max-invocations 20 :invocations (atom 4)}
             positive-wave {:wave 1
                            :branches [{:id "TEST" :verifier {:verdict "PASS"}}]
-                           :review {:continue_research true
-                                    :polya_receipt {:advanced_first_open_line true
-                                                    :supporting_brief_ids ["TEST"]}}}
+                           :gate {:continue_research true
+                                  :polya_receipt {:advanced_first_open_line true
+                                                  :supporting_brief_ids ["TEST"]}}}
             unverified-wave (assoc positive-wave :branches
                                    [{:id "TEST" :verifier {:verdict "REPAIR"}}])
             mislinked-wave (assoc positive-wave :branches
@@ -1015,9 +1028,19 @@
         _ (write-edn! (child run-path "RUN.edn") interrupted)
         _ (write-json! (child run-path "RUN.json") interrupted)
         result (with-run-lock #(resume-run! (:run_id first-pass)))
+        role-order (->> (str/split-lines (slurp (child run-path "events.jsonl")))
+                        (map #(json/parse-string % true))
+                        (filter #(= "attempt.started" (:event_type %)))
+                        (mapv :role))
+        expected-order ["manage" "execute" "verify" "gate"
+                        "manage" "execute" "verify" "gate"
+                        "remember" "review"]
+        _ (when-not (= expected-order role-order)
+            (fail! "Fixture role order violated research-before-reflection"
+                   {:expected expected-order :actual role-order}))
         exported (with-run-lock #(export-run! (:run_id result)))
         inspected (inspect-bundle! (:path exported))]
-    {:status "FIXTURE_PASS" :resumed_after_interruption true
+    {:status "FIXTURE_PASS" :resumed_after_interruption true :role_order role-order
      :run result :export exported :inspect inspected}))
 
 (defn print-result [value] (println (json/generate-string value {:pretty true})))

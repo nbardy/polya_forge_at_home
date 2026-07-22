@@ -18,4 +18,4 @@
 - **Verification budget:** at least one independent verifier for every
   mathematical builder
 - **Required outputs:** derivation or experiment, failure record, verification
-  report, result card, memory proposal, and Pólya receipt
+  report, wave receipts, memory proposal, and terminal harness review
