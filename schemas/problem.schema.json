@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://polya-forge-at-home.invalid/schemas/problem.schema.json",
+  "title": "Pólya Forge problem pack",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format-version", "id", "title", "status", "target", "instructions", "memory", "catalog", "retired-routes", "goals", "official-source", "admission", "budgets"],
+  "properties": {
+    "format-version": {"const": 1},
+    "id": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+    "title": {"type": "string", "minLength": 1},
+    "status": {"enum": ["open", "solved", "benchmark", "inactive"]},
+    "target": {"type": "string"},
+    "instructions": {"type": "string"},
+    "memory": {"type": "string"},
+    "catalog": {"type": "string"},
+    "retired-routes": {"type": "string"},
+    "goals": {"type": "string"},
+    "official-source": {"type": "string", "format": "uri"},
+    "admission": {"type": "object"},
+    "budgets": {"type": "object"}
+  }
+}
+

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["mathematical_progress", "process_quality", "polya_receipt", "engine_assessment", "engine_changes"],
+  "properties": {
+    "mathematical_progress": {"type": "string"},
+    "process_quality": {"type": "string"},
+    "polya_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["advanced_first_open_line", "removed_hypothesis", "killed_route_class", "side_theorem", "explanation"],
+      "properties": {
+        "advanced_first_open_line": {"type": "boolean"},
+        "removed_hypothesis": {"type": "boolean"},
+        "killed_route_class": {"type": "boolean"},
+        "side_theorem": {"type": "boolean"},
+        "explanation": {"type": "string"}
+      }
+    },
+    "engine_assessment": {"type": "string"},
+    "engine_changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "hypothesis", "evidence", "predicted_benefit", "regression_risk", "cheapest_test"],
+        "properties": {
+          "path": {"type": "string"},
+          "hypothesis": {"type": "string"},
+          "evidence": {"type": "string"},
+          "predicted_benefit": {"type": "string"},
+          "regression_risk": {"type": "string"},
+          "cheapest_test": {"type": "string"}
+        }
+      }
+    }
+  }
+}
+

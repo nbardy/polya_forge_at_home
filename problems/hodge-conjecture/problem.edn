@@ -1,0 +1,14 @@
+{:format-version 1
+ :id "hodge-conjecture"
+ :title "Hodge Conjecture"
+ :status :open
+ :target "target.md"
+ :instructions "AGENTS.md"
+ :memory "memory/KEY_LEARNINGS.md"
+ :catalog "results/RESULTS_CATALOG.md"
+ :retired-routes "results/RETIRED_ROUTES.md"
+ :goals "goals"
+ :official-source "https://www.claymath.org/millennium/hodge-conjecture/"
+ :admission {:mechanisms #{:kernel-checked-formalization :external-human-review}}
+ :budgets {:max-briefs 3 :max-workers 3 :max-invocations 9 :max-wall-minutes 120}}
+

@@ -1,0 +1,31 @@
+name: Static validation
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned Babashka
+        run: |
+          curl --fail --location --silent --show-error \
+            https://github.com/babashka/babashka/releases/download/v1.12.209/babashka-1.12.209-linux-amd64-static.tar.gz \
+            --output /tmp/babashka.tar.gz
+          tar -xzf /tmp/babashka.tar.gz -C /tmp
+          sudo install /tmp/bb /usr/local/bin/bb
+      - name: Validate repository
+        run: bb validate
+      - name: Run deterministic tests
+        run: bb test
+
+# This workflow intentionally makes no model calls and executes no code from a
+# submitted research bundle. Engine-code pull requests are trusted only after
+# ordinary code review; a future hardened workflow will add sandboxed replay.
+

@@ -1,0 +1,14 @@
+{:format-version 1
+ :id "poincare-conjecture"
+ :title "Poincaré Conjecture"
+ :status :solved
+ :target "target.md"
+ :instructions "AGENTS.md"
+ :memory "memory/KEY_LEARNINGS.md"
+ :catalog "results/RESULTS_CATALOG.md"
+ :retired-routes "results/RETIRED_ROUTES.md"
+ :goals "goals"
+ :official-source "https://www.claymath.org/millennium/poincare-conjecture/"
+ :admission {:mechanisms #{:primary-source-reproduction :external-human-review}}
+ :budgets {:max-briefs 3 :max-workers 3 :max-invocations 9 :max-wall-minutes 120}}
+

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://polya-forge-at-home.invalid/schemas/contribution.schema.json",
+  "title": "Pólya Forge contribution bundle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format_version", "bundle_id", "run_id", "problem_id", "engine_version", "goal_hash", "created_at", "files"],
+  "properties": {
+    "format_version": {"const": 1},
+    "bundle_id": {"type": "string"},
+    "run_id": {"type": "string"},
+    "problem_id": {"type": "string"},
+    "engine_version": {"type": "string"},
+    "goal_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "created_at": {"type": "string"},
+    "files": {
+      "type": "object",
+      "additionalProperties": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+    }
+  }
+}
+
