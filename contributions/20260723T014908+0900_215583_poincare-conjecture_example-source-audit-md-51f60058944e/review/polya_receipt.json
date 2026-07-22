@@ -1,0 +1,7 @@
+{
+  "advanced_first_open_line" : false,
+  "removed_hypothesis" : false,
+  "killed_route_class" : false,
+  "side_theorem" : false,
+  "explanation" : "The first open line—selecting and pinning the primary-source lemma and page/hash—remains open. No hypothesis or predeclared route class was tested, and no independently checkable theorem was produced. A renamed successor abstraction is not authorized."
+}
