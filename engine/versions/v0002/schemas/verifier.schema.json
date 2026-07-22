@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verdict", "summary", "claim_maturity", "first_invalid_or_open_line", "evidence", "failure_type", "failure_scope", "surviving_core", "smallest_repair", "reopening_test"],
+  "properties": {
+    "verdict": {"type": "string", "enum": ["PASS", "REPAIR", "FAIL", "QUARANTINE"]},
+    "summary": {"type": "string"},
+    "claim_maturity": {"type": "string"},
+    "first_invalid_or_open_line": {"type": "string"},
+    "evidence": {"type": "array", "items": {"type": "string"}},
+    "failure_type": {"type": "string"},
+    "failure_scope": {"type": "string"},
+    "surviving_core": {"type": "string"},
+    "smallest_repair": {"type": "string"},
+    "reopening_test": {"type": "string"}
+  }
+}

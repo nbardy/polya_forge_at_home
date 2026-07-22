@@ -10,5 +10,4 @@
  :goals "goals"
  :official-source "https://www.claymath.org/millennium/birch-and-swinnerton-dyer-conjecture/"
  :admission {:mechanisms #{:kernel-checked-formalization :external-human-review}}
- :budgets {:max-briefs 3 :max-workers 3 :max-invocations 9 :max-wall-minutes 120}}
-
+ :budgets {:max-briefs 3 :max-workers 3 :max-invocations 96 :max-wall-minutes 720}}

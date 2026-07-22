@@ -7,8 +7,8 @@ mathematical problems into long-running, auditable swarm-compute programs.
 People contribute compute from home; bounded AI research swarms explore and
 verify exact claims; asynchronous merge turns useful work into shared problem
 memory; and the harness recursively learns how to attack each problem better.
-The multi-user network is the roadmap; v0.1 is the tested local node and bundle
-protocol from which that network can be built.
+The multi-user network is the roadmap; the v0.2 candidate is the tested local
+iterative node and bundle protocol from which that network can be built.
 
 It does **not** decide that a proof is correct. It runs bounded research rounds,
 records exact inputs and outputs, requires an independent verification branch,
@@ -32,9 +32,9 @@ helped or hurt. It then proposes the next problem-adapted harness, with evidence
 regression risks, and a cheapest test.
 
 This is **recursive harness optimization**: scientific work improves the
-harness, and the improved harness performs the next scientific work. Public
-v0.1 records successor proposals but deliberately requires separate validation
-before activation.
+harness, and the improved harness performs the next scientific work. The
+public engine records successor proposals but deliberately requires separate
+validation before activation.
 
 ## Two axes of test-time compute
 
@@ -83,11 +83,14 @@ errors as easily as insight, so verification, provenance, diversity, and
 problem-specific harness adaptation are part of the scaling system—not
 afterthoughts.
 
-## What works in v0.1
+## What works in the v0.2 candidate
 
 - Discover and validate multiple problem packs.
 - Validate bounded goal contracts.
-- Run `manage -> execute -> verify -> remember -> review` with Codex.
+- Run bounded, iterative `manage -> parallel execute/verify -> review` waves
+  with Codex, followed by one durable memory reconciliation.
+- Continue only when an independent verifier and a positive Pólya receipt
+  support a non-duplicative next research wave.
 - Keep agent work inside per-run attempt directories.
 - Checkpoint each stage and resume interrupted rounds.
 - Hash the problem pack, goal, prompts, schemas, and generated artifacts.
@@ -138,6 +141,10 @@ Run one research round:
 ```bash
 bb run navier-stokes --goal problems/navier-stokes/goals/my-goal.md
 ```
+
+An active goal may use up to eight evidence-driven waves in one run. Wall time
+is a true global deadline, not a per-call allowance. Longer runs come from
+verified successor work, never artificial waiting or repeated prompts.
 
 If the controller is interrupted:
 

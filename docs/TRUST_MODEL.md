@@ -24,12 +24,12 @@
 - Structured output schemas
 - Independent verifier for every builder
 - Single canonical controller writer
-- Stage-boundary checkpoints and explicit resume
+- Wave/role-boundary checkpoints and explicit resume
 - Sanitized export allowlist
 - Non-executing public inspection
 - Separate activation of recursive engine changes
 
-## Known v0.1 limitations
+## Known local-alpha limitations
 
 Codex attempts use the local CLI's `workspace-write` sandbox. This constrains
 writes but should not be treated as a complete hostile-code or confidentiality
@@ -40,4 +40,3 @@ credential brokering.
 Formal kernel checking validates a formal statement, not that the statement is
 the right translation of the prize problem. Statement fidelity and relevance
 still require independent review.
-

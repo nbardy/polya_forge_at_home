@@ -15,7 +15,7 @@ reviewer answer:
 
 ## Export allowlist
 
-v0.1 exports only:
+The current engine exports only:
 
 ```text
 bundle.json
@@ -27,6 +27,7 @@ results/*/executor.json
 results/*/verifier.json
 memory/memory_delta.json
 review/review.json
+review/waves.json
 review/polya_receipt.json
 published/manifest.edn
 ```
@@ -71,4 +72,3 @@ A bundle may propose a problem-local learning. Promotion requires verified,
 non-obvious, behavior-changing evidence and a completed closeout review.
 Engine-wide process learnings require evidence across problems or a precise
 reason the lesson is domain-independent.
-

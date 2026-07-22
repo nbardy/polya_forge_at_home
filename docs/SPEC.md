@@ -17,7 +17,7 @@ prize organization.
 problem pack + bounded goal
         |
         v
-      manage            serial ambiguity reduction
+      manage            ambiguity reduction / next-wave selection
         |
         v
   execute branches      bounded parallel derivation/falsification
@@ -26,10 +26,12 @@ problem pack + bounded goal
       verify             independent audit of each builder
         |
         v
-     remember            problem-local memory proposal
+      review             Pólya receipt + engine-change proposal
+        | positive receipt backed by an independent PASS
+        +-------------------------> next manage wave
         |
         v
-      review             Pólya receipt + engine-change proposal
+     remember            terminal problem-local memory proposal
         |
         v
   sanitized bundle      public, non-executable contribution unit
@@ -65,16 +67,19 @@ edits the active parent in place. See `LEAN_CORE.md`.
 ## 4. State machine
 
 ```text
-CREATED -> MANAGE -> EXECUTE_VERIFY -> REMEMBER -> REVIEW -> CLOSED
-                     |                              |
-                     +---------- FAILED -----------+
+CREATED -> MANAGE -> EXECUTE_VERIFY -> REVIEW --+-> MANAGE
+                     |                 |         |
+                     |                 +-> REMEMBER -> CLOSED
+                     +----------------------- FAILED
 ```
 
-Each completed role has a durable `result.json`. Resume starts at the first
-stage whose required terminal artifact is absent. Failed attempts are retained;
+Each completed role has a durable artifact. Every wave freezes its manager
+allocation, builder/verifier branches, and review before a successor wave may
+start. Resume starts at the first stage whose required terminal artifact is
+absent. Failed attempts are retained;
 rerunning them creates a new attempt number in a later engine version.
 
-v0.1 supports resuming at stage boundaries. Mid-process event streams are
+v0.2 supports resuming at wave and role boundaries. Mid-process event streams are
 preserved but a killed model invocation itself is not resumed token-for-token.
 
 ## 5. Directory ownership
@@ -94,9 +99,9 @@ RUN.edn
 RUN.json
 events.jsonl
 snapshot/
-manager/
 briefs/
 attempts/<brief-id>/{execute,verify}/
+waves/WNN/{manager,review,wave}.json
 memory/
 review/
 published/manifest.edn
@@ -108,7 +113,7 @@ the public allowlist defined by the contribution specification.
 ## 7. Recursion
 
 The reviewer may propose complete prompt, schema, topology, or runner changes.
-v0.1 records these proposals under `review/engine_changes.json`; it does not
+The controller records these proposals under `review/engine_changes.json`; it does not
 automatically activate them. Automatic multi-round activation remains disabled
 until signed/versioned proposals, regression replay, and crash-safe activation
 are implemented.
@@ -169,7 +174,7 @@ be deterministic. Language-model research output is not expected to be
 byte-identical. Reproducibility means reconstructing exact inputs, provenance,
 budgets, and artifacts and then independently checking the mathematical claim.
 
-## 10. Non-goals for v0.1
+## 10. Non-goals for the local alpha
 
 - Executing untrusted contributor code in CI
 - Automatically merging results or memory

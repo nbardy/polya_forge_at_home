@@ -1,6 +1,6 @@
 # Goal: REPLACE_WITH_STABLE_ID
 
-- **Status:** proposed
+- **Status:** proposed; change to `active` only after every launch input is pinned
 - **Problem:** replace-with-problem-id
 - **Exact objective:**
 - **Main claim or deliverable:**
@@ -12,10 +12,10 @@
 - **Kill criteria:**
 - **Maximum briefs:** 3
 - **Maximum active workers:** 3
-- **Maximum model invocations:** 9
-- **Maximum wall time:** 120 minutes
+- **Maximum model invocations:** 72
+- **Maximum research waves:** 8
+- **Maximum wall time:** 480 minutes
 - **Verification budget:** at least one independent verifier for every
   mathematical builder
 - **Required outputs:** derivation or experiment, failure record, verification
   report, result card, memory proposal, and Pólya receipt
-

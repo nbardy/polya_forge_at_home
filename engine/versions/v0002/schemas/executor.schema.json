@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["disposition", "summary", "claim_status", "first_open_line", "artifacts", "evidence", "failed_steps", "assumption_checks", "next_actions"],
+  "properties": {
+    "disposition": {"type": "string", "enum": ["ADVANCE", "KILL", "BRANCH", "STALL", "BLOCKED", "QUARANTINE"]},
+    "summary": {"type": "string"},
+    "claim_status": {"type": "string"},
+    "first_open_line": {"type": "string"},
+    "artifacts": {"type": "array", "items": {"type": "string"}},
+    "evidence": {"type": "array", "items": {"type": "string"}},
+    "failed_steps": {"type": "array", "items": {"type": "string"}},
+    "assumption_checks": {"type": "array", "items": {"type": "string"}},
+    "next_actions": {"type": "array", "items": {"type": "string"}}
+  }
+}

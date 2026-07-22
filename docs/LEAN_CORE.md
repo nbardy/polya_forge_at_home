@@ -65,6 +65,12 @@ Everything else should first be attempted with files, subprocesses, and Git.
 In particular, databases, queues, hosted coordinators, plugin systems, and
 automatic code activation are not prerequisites for the local alpha.
 
+Complexity is not evidence of evolution. A descendant earns activation by
+fixing a reproduced defect or beating a frozen harness benchmark through a
+substantive mechanism such as a better search graph, fan-out policy, verifier
+placement, tool allocation, or stopping rule. Longer prompts, extra labels,
+and additional self-reported scores do not qualify by themselves.
+
 ## Design test
 
 A contributor should be able to answer these questions by reading

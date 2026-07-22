@@ -2,6 +2,28 @@
 
 Pólya Forge at Home produces research evidence, not truth by consensus.
 
+## Design philosophy
+
+The core exists to increase the rate of independently verified progress toward
+each problem pack's official endpoint. A run that does not solve the problem
+must leave future runs better equipped: it should advance a frozen open line,
+remove an assumption, kill a precisely stated route, or add a reusable verified
+research asset. Merely completing a lifecycle, spending more tokens, adding
+more labels, or lengthening prompts is not progress.
+
+Keep the controller lean. Add machinery only when it fixes a reproduced defect,
+protects a non-negotiable invariant, or improves a frozen benchmark. Prefer a
+small number of composable mechanisms—bounded iteration, evidence-driven
+fan-out, independent verification, durable memory, and explicit stopping
+rules—over special cases, status taxonomies, and orchestration ceremony.
+
+Harness evolution must be empirical and structural. Candidate descendants may
+change topology, role allocation, tool use, search policy, or resource
+allocation when a stated hypothesis and regression comparison justify it.
+They must not claim improvement from extra prose, extra signals, self-review,
+or model agreement alone. Preserve a simple stable kernel; version and test
+every evolved harness outside its parent before activation.
+
 ## Non-negotiable rules
 
 1. Every run has one problem pack, one bounded goal, and finite budgets.
@@ -33,4 +55,3 @@ event log inside the local run.
 
 Research contributions and engine changes must use separate pull requests.
 Ordinary result validation must never execute contributor-supplied code.
-

@@ -32,8 +32,9 @@
    :effort "high"
    :workers 3
    :brief-limit 3
-   :max-invocations 9
-   :timeout-minutes 120
+   :max-invocations 72
+   :max-waves 8
+   :timeout-minutes 480
    :codex "codex"
    :fixture false})
 
@@ -204,8 +205,39 @@
 
 (def required-goal-headings
   ["**Status:**" "**Problem:**" "**Exact objective:**" "**Main claim or deliverable:**"
-   "**First open line:**" "**Completion criteria:**" "**Kill criteria:**"
+   "**Official endpoint edge:**" "**First open line:**" "**Inputs:**"
+   "**Completion criteria:**" "**Kill criteria:**"
    "**Verification budget:**"])
+
+(def goal-field-patterns
+  {:status #"(?ms)^- \*\*Status:\*\*\s*(.*?)(?=^- \*\*|\z)"
+   :problem #"(?ms)^- \*\*Problem:\*\*\s*(.*?)(?=^- \*\*|\z)"
+   :objective #"(?ms)^- \*\*Exact objective:\*\*\s*(.*?)(?=^- \*\*|\z)"
+   :deliverable #"(?ms)^- \*\*Main claim or deliverable:\*\*\s*(.*?)(?=^- \*\*|\z)"
+   :endpoint-edge #"(?ms)^- \*\*Official endpoint edge:\*\*\s*(.*?)(?=^- \*\*|\z)"
+   :first-open-line #"(?ms)^- \*\*First open line:\*\*\s*(.*?)(?=^- \*\*|\z)"
+   :inputs #"(?ms)^- \*\*Inputs:\*\*\s*(.*?)(?=^- \*\*|\z)"
+   :completion #"(?ms)^- \*\*Completion criteria:\*\*\s*(.*?)(?=^- \*\*|\z)"
+   :kill #"(?ms)^- \*\*Kill criteria:\*\*\s*(.*?)(?=^- \*\*|\z)"
+   :verification #"(?ms)^- \*\*Verification budget:\*\*\s*(.*?)(?=^- \*\*|\z)"})
+
+(defn parse-goal-fields [text]
+  (into {} (for [[key pattern] goal-field-patterns]
+             [key (some-> (re-find pattern text) second str/trim)])))
+
+(defn goal-preflight [problem goal]
+  (let [fields (:fields goal)
+        status (str/lower-case (or (:status fields) ""))
+        required-values [:objective :deliverable :endpoint-edge :first-open-line
+                         :inputs :completion :kill :verification]
+        reasons (cond-> []
+                  (not (re-find #"^(active|approved|launched)\b" status))
+                  (conj "Goal status is not active, approved, or launched")
+                  (not= (:id (:manifest problem)) (:problem fields))
+                  (conj "Goal problem does not match the selected problem pack")
+                  (seq (filter #(str/blank? (get fields %)) required-values))
+                  (conj "Goal has blank research-contract fields"))]
+    {:launchable (empty? reasons) :reasons reasons :fields fields}))
 
 (defn validate-goal! [problem goal-path]
   (let [goals-dir (safe-relative! (:dir problem) (get-in problem [:manifest :goals]))
@@ -218,12 +250,13 @@
       (doseq [heading required-goal-headings]
         (when-not (str/includes? text heading)
           (fail! "Goal is missing a required field" {:field heading})))
-      {:file goal :text text :hash (sha256-file goal)})))
+      {:file goal :text text :hash (sha256-file goal) :fields (parse-goal-fields text)})))
 
 (def goal-budget-patterns
   {:brief-limit #"(?m)^- \*\*Maximum briefs:\*\*\s*(\d+)\s*$"
    :workers #"(?m)^- \*\*Maximum active workers:\*\*\s*(\d+)\s*$"
    :max-invocations #"(?m)^- \*\*Maximum model invocations:\*\*\s*(\d+)\s*$"
+   :max-waves #"(?m)^- \*\*Maximum research waves:\*\*\s*(\d+)\s*$"
    :timeout-minutes #"(?m)^- \*\*Maximum wall time:\*\*\s*(\d+)\s+minutes\s*$"})
 
 (defn apply-goal-limits [opts goal]
@@ -237,8 +270,8 @@
 (def value-flags
   {"--goal" :goal "--model" :model "--effort" :effort "--workers" :workers
    "--brief-limit" :brief-limit "--max-invocations" :max-invocations
-   "--timeout-minutes" :timeout-minutes "--codex" :codex})
-(def integer-flags #{:workers :brief-limit :max-invocations :timeout-minutes})
+   "--max-waves" :max-waves "--timeout-minutes" :timeout-minutes "--codex" :codex})
+(def integer-flags #{:workers :brief-limit :max-invocations :max-waves :timeout-minutes})
 
 (defn parse-options [args]
   (loop [xs args opts default-options]
@@ -261,6 +294,10 @@
       (when-not (<= 1 (get opts key) (get limits max-key))
         (fail! "Requested option exceeds problem budget" {:option key :requested (get opts key)
                                                            :maximum (get limits max-key)}))))
+  (let [maximum (or (get-in (version-config) [:topology :max-waves]) 1)]
+    (when-not (<= 1 (:max-waves opts) maximum)
+      (fail! "Requested wave count exceeds engine topology"
+             {:requested (:max-waves opts) :maximum maximum})))
   opts)
 
 (defn template [text replacements]
@@ -310,6 +347,32 @@
        "\n# Retired routes\n\n" (snapshot-text ctx "retired")
        "\n# Goal\n\n" (snapshot-text ctx "goal")))
 
+(defn wave-context [waves]
+  (if (empty? waves)
+    "No prior wave. Start from the frozen first open line."
+    (json/generate-string
+     {:instruction "Use only verified surviving work; do not repeat disposed branches."
+      :prior_waves
+      (mapv (fn [wave]
+              {:wave (:wave wave)
+               :manager (select-keys (:manager wave) [:endpoint :first_open_line])
+               :branches
+               (mapv (fn [branch]
+                       {:id (:id branch)
+                        :builder (select-keys (:builder branch)
+                                              [:disposition :summary :claim_status :first_open_line
+                                               :artifacts :evidence :failed_steps :next_actions])
+                        :verifier (select-keys (:verifier branch)
+                                               [:verdict :summary :claim_maturity
+                                                :first_invalid_or_open_line :evidence
+                                                :failure_scope :surviving_core :reopening_test])})
+                     (:branches wave))
+               :review (select-keys (:review wave)
+                                    [:mathematical_progress :polya_receipt
+                                     :continue_research :next_open_line :next_strategy])})
+            waves)}
+     {:pretty true})))
+
 (defn update-state! [ctx additions]
   (locking (:state ctx)
     (let [next (merge @(:state ctx) additions {:updated_at (human-time)})]
@@ -323,11 +386,19 @@
                  (assoc value :recorded_at (human-time))))
 
 (defn acquire-invocation! [ctx]
-  (let [n (swap! (:invocations ctx) inc)]
-    (when (> n (:max-invocations ctx))
-      (fail! "Model invocation budget exhausted" {:limit (:max-invocations ctx)}))
-    (update-state! ctx {:invocations n})
-    n))
+  (locking (:state ctx)
+    (when (<= (long (or (:deadline_epoch_ms @(:state ctx)) 0))
+              (System/currentTimeMillis))
+      (fail! "Global run wall-clock budget exhausted" {:budget :wall-clock}))
+    (let [n (inc @(:invocations ctx))]
+      (when (> n (:max-invocations ctx))
+        (fail! "Model invocation budget exhausted" {:limit (:max-invocations ctx)}))
+      (reset! (:invocations ctx) n)
+      (update-state! ctx {:invocations n})
+      n)))
+
+(defn remaining-wall-millis [ctx]
+  (max 0 (- (long (:deadline_epoch_ms @(:state ctx))) (System/currentTimeMillis))))
 
 (defn destroy-process! [^Process p]
   (try (doseq [h (iterator-seq (.iterator (.descendants (.toHandle p))))]
@@ -335,7 +406,7 @@
        (catch Exception _ nil))
   (try (.destroyForcibly p) (catch Exception _ nil)))
 
-(defn fixture-result [role]
+(defn fixture-result [role task-id]
   (case role
     :manage
     {:manager_review "Deterministic no-model fixture manager."
@@ -369,11 +440,20 @@
      :helpful_prior_work [] :always_on_candidates [] :demotions []
      :searchable_additions [] :quarantines [] :withholding_rules []}
     :review
-    {:mathematical_progress "None; fixture made no mathematical claim."
+    {:mathematical_progress "The deterministic fixture added a verified controller regression asset."
      :process_quality "All five capabilities produced structured artifacts."
      :polya_receipt {:advanced_first_open_line false :removed_hypothesis false
                      :killed_route_class false :side_theorem false
-                     :explanation "Controller fixture only."}
+                     :reusable_research_asset true
+                     :supporting_brief_ids ["FIXTURE"]
+                     :explanation "Verified controller fixture only; no mathematical claim."}
+     :continue_research (= task-id "W01-REVIEW")
+     :next_open_line (if (= task-id "W01-REVIEW")
+                       "Exercise the successor-wave checkpoint."
+                       "No mathematical successor; retain as a controller regression.")
+     :next_strategy (if (= task-id "W01-REVIEW")
+                      "Authorize exactly one non-duplicative successor fixture wave."
+                      "Stop after the second verified fixture wave.")
      :engine_assessment "The deterministic path completed."
      :engine_changes []}))
 
@@ -387,7 +467,7 @@
 
       (:fixture ctx)
       (let [invocation (acquire-invocation! ctx)
-            result (fixture-result role)]
+            result (fixture-result role task-id)]
         (write-text! (child attempt "prompt.md") prompt)
         (event! ctx {:event_type "attempt.started" :role (name role)
                      :task_id task-id :invocation invocation :fixture true})
@@ -421,9 +501,10 @@
             (with-open [stdin (.getOutputStream p)]
               (.write stdin (.getBytes prompt StandardCharsets/UTF_8))
               (.flush stdin))
-            (when-not (.waitFor p (:timeout-minutes ctx) TimeUnit/MINUTES)
+            (when-not (.waitFor p (remaining-wall-millis ctx) TimeUnit/MILLISECONDS)
               (destroy-process! p)
-              (fail! "Model attempt timed out" {:role role :task task-id}))
+              (fail! "Global run wall-clock budget exhausted"
+                     {:role role :task task-id :budget :wall-clock}))
             (when-not (zero? (.exitValue p))
               (fail! "Model attempt failed" {:role role :task task-id
                                               :exit (.exitValue p)
@@ -458,74 +539,130 @@
       (fail! "Every mathematical brief must request independent verification" {:brief (:id brief)})))
   briefs)
 
-(defn manage! [ctx]
-  (let [result-file (child (:run-path ctx) "manager" "result.json")]
-    (if (.isFile result-file)
-      (read-json result-file)
-      (let [prompt (template (slurp (prompt-file :manage))
-                             {:BRIEF_LIMIT (:brief-limit ctx) :SNAPSHOT (manager-snapshot ctx)})
-            result (invoke! ctx :manage "MANAGER" prompt)
-            briefs (validate-briefs! ctx (:briefs result))]
-        (ensure-dir! (child (:run-path ctx) "manager"))
-        (write-json! result-file result)
-        (doseq [brief briefs]
-          (write-json! (child (:run-path ctx) "briefs" (str (:id brief) ".json")) brief)
-          (write-text! (child (:run-path ctx) "briefs" (str (:id brief) ".md"))
-                       (brief-markdown brief)))
-        result))))
+(defn wave-label [wave] (format "W%02d" wave))
 
-(defn execute-verify-branch! [ctx brief]
+(defn affordable-brief-limit [ctx]
+  (max 0 (min (:brief-limit ctx)
+              (quot (- (:max-invocations ctx) @(:invocations ctx) 3) 2))))
+
+(defn manage! [ctx wave prior-waves]
+  (let [label (wave-label wave)
+        result-file (child (:run-path ctx) "waves" label "manager.json")]
+    (let [result
+          (if (.isFile result-file)
+            (read-json result-file)
+            (let [limit (affordable-brief-limit ctx)
+                  _ (when (< limit 1)
+                      (fail! "Insufficient invocation budget for another verified wave"))
+                  prompt (template (slurp (prompt-file :manage))
+                                   {:BRIEF_LIMIT limit
+                                    :SNAPSHOT (manager-snapshot ctx)
+                                    :WAVE_CONTEXT (wave-context prior-waves)})]
+              (invoke! ctx :manage (str label "-MANAGER") prompt)))
+          briefs (validate-briefs! ctx (:briefs result))]
+      (write-json! result-file result)
+      (doseq [brief briefs]
+        (write-json! (child (:run-path ctx) "briefs" (str label "-" (:id brief) ".json")) brief)
+        (write-text! (child (:run-path ctx) "briefs" (str label "-" (:id brief) ".md"))
+                     (brief-markdown brief)))
+      result)))
+
+(defn execute-verify-branch! [ctx wave brief]
   (let [id (:id brief)
+        task-id (str (wave-label wave) "-" id)
         brief-json (json/generate-string brief {:pretty true})
         execute-prompt (template (slurp (prompt-file :execute))
                                  {:TARGET (snapshot-text ctx "target")
                                   :GOAL (snapshot-text ctx "goal")
                                   :BRIEF brief-json})
-        builder (invoke! ctx :execute id execute-prompt)
+        builder (invoke! ctx :execute task-id execute-prompt)
         verify-prompt (template (slurp (prompt-file :verify))
                                 {:TARGET (snapshot-text ctx "target")
                                  :GOAL (snapshot-text ctx "goal")
                                  :BRIEF brief-json
                                  :BUILDER_RESULT (json/generate-string builder {:pretty true})})
-        verifier (invoke! ctx :verify id verify-prompt)]
+        verifier (invoke! ctx :verify task-id verify-prompt)]
     {:id id :builder builder :verifier verifier}))
 
-(defn execute-all! [ctx briefs]
+(defn execute-all! [ctx wave briefs]
   (let [pool (Executors/newFixedThreadPool (:workers ctx))
         tasks (mapv (fn [brief]
                       (.submit pool ^Callable (reify Callable
-                                                (call [_] (execute-verify-branch! ctx brief)))))
+                                                (call [_] (execute-verify-branch! ctx wave brief)))))
                     briefs)]
     (try
       (mapv #(.get %) tasks)
+      (catch Exception error
+        (doseq [task tasks] (.cancel task true))
+        (.shutdownNow pool)
+        (throw error))
       (finally
         (.shutdown pool)
-        (.awaitTermination pool 10 TimeUnit/SECONDS)))))
+        (when-not (.awaitTermination pool 10 TimeUnit/SECONDS)
+          (.shutdownNow pool))))))
 
-(defn run-summary [ctx branches]
+(defn run-summary [ctx waves]
   (json/generate-string
    {:problem_id (:problem-id ctx)
     :run_id (:run-id ctx)
     :goal (snapshot-text ctx "goal")
-    :branches branches}
+    :waves waves}
    {:pretty true}))
 
-(defn remember! [ctx branches]
-  (let [prompt (template (slurp (prompt-file :remember)) {:RUN_SUMMARY (run-summary ctx branches)})]
+(defn remember! [ctx waves]
+  (let [prompt (template (slurp (prompt-file :remember)) {:RUN_SUMMARY (run-summary ctx waves)})]
     (invoke! ctx :remember "MEMORY" prompt)))
 
-(defn review! [ctx branches memory]
-  (let [summary (json/generate-string {:branches branches :memory memory} {:pretty true})
+(defn review-wave! [ctx wave branches]
+  (let [label (wave-label wave)
+        result-file (child (:run-path ctx) "waves" label "review.json")
+        summary (json/generate-string {:wave wave :branches branches} {:pretty true})
         prompt (template (slurp (prompt-file :review)) {:RUN_SUMMARY summary})]
-    (invoke! ctx :review "REVIEW" prompt)))
+    (if (.isFile result-file)
+      (read-json result-file)
+      (let [review (invoke! ctx :review (str label "-REVIEW") prompt)]
+        (write-json! result-file review)
+        review))))
 
-(defn publish-run! [ctx branches memory review]
+(def receipt-progress-keys
+  [:advanced_first_open_line :removed_hypothesis :killed_route_class
+   :side_theorem :reusable_research_asset])
+
+(defn positive-receipt? [review]
+  (boolean (some true? (map #(get-in review [:polya_receipt %]) receipt-progress-keys))))
+
+(defn verified-progress? [wave]
+  (let [supporting (set (get-in wave [:review :polya_receipt :supporting_brief_ids]))
+        passed (set (for [branch (:branches wave)
+                          :when (= "PASS" (get-in branch [:verifier :verdict]))]
+                      (:id branch)))]
+    (and (positive-receipt? (:review wave))
+         (seq supporting)
+         (every? passed supporting))))
+
+(defn completed-waves [ctx]
+  (let [root (child (:run-path ctx) "waves")]
+    (->> (or (seq (.listFiles (ensure-dir! root))) [])
+         (filter #(.isDirectory ^File %))
+         (sort-by #(.getName ^File %))
+         (keep (fn [dir]
+                 (let [file (child dir "wave.json")]
+                   (when (.isFile file) (read-json file)))))
+         vec)))
+
+(defn write-wave! [ctx wave-value]
+  (write-json! (child (:run-path ctx) "waves" (wave-label (:wave wave-value)) "wave.json")
+               wave-value)
+  wave-value)
+
+(defn publish-run! [ctx waves memory review]
   (ensure-dir! (child (:run-path ctx) "memory"))
   (ensure-dir! (child (:run-path ctx) "review"))
   (write-json! (child (:run-path ctx) "memory" "memory_delta.json") memory)
   (write-json! (child (:run-path ctx) "review" "review.json") review)
   (write-json! (child (:run-path ctx) "review" "polya_receipt.json") (:polya_receipt review))
   (write-json! (child (:run-path ctx) "review" "engine_changes.json") (:engine_changes review))
+  (write-json! (child (:run-path ctx) "review" "waves.json") waves)
   (let [manifest
         {:run_id (:run-id ctx)
          :created_at (human-time)
@@ -547,36 +684,70 @@
             :state (atom state)
             :invocations (atom (long (or (:invocations state) 0)))})))
 
-(defn pending-invocations [ctx briefs]
-  (+
-   (reduce +
-           (for [brief briefs
-                 role [:execute :verify]]
-             (if (.isFile (child (:run-path ctx) "attempts" (:id brief)
-                                 (name role) "result.json")) 0 1)))
-   (if (.isFile (child (:run-path ctx) "attempts" "MEMORY" "remember" "result.json")) 0 1)
-   (if (.isFile (child (:run-path ctx) "attempts" "REVIEW" "review" "result.json")) 0 1)))
+(defn remaining-invocations [ctx]
+  (- (:max-invocations ctx) @(:invocations ctx)))
+
+(defn wave-cost-after-manager [briefs]
+  (+ (* 2 (count briefs)) 1 1)) ; builders/verifiers + wave review + final memory
+
+(defn continuation-authorized? [ctx wave-value]
+  (and (< (:wave wave-value) (:max-waves ctx))
+       (>= (remaining-invocations ctx) 5) ; manager + one branch pair + review + memory
+       (:continue_research (:review wave-value))
+       (verified-progress? wave-value)))
+
+(defn require-initial-briefs! [prior-waves manager]
+  (when (and (empty? prior-waves) (empty? (:briefs manager)))
+    (fail! "Eligible goal produced no executable research briefs"
+           {:manager_review (:manager_review manager)}))
+  manager)
+
+(defn close-run! [ctx waves stop-reason]
+  (update-state! ctx {:state "REMEMBER" :wave_count (count waves)})
+  (let [memory (remember! ctx waves)
+        review (:review (last waves))
+        manifest (publish-run! ctx waves memory review)
+        meaningful (boolean (some verified-progress? waves))]
+    (update-state! ctx {:state "CLOSED" :ended_at (human-time)
+                        :meaningful_progress meaningful
+                        :stop_reason stop-reason
+                        :published_files (count (:files manifest))})
+    {:run_id (:run-id ctx) :state "CLOSED" :meaningful_progress meaningful
+     :waves (count waves) :run_path (canonical-path (:run-path ctx))}))
 
 (defn continue-run! [ctx]
   (try
     (assert-controls! ctx)
-    (update-state! ctx {:state "MANAGE"})
-    (let [manager (manage! ctx)
-          briefs (:briefs manager)
-          needed (+ @(:invocations ctx) (pending-invocations ctx briefs))]
-      (when (> needed (:max-invocations ctx))
-        (fail! "Goal cannot fund builders, verifiers, memory, and review"
-               {:needed needed :limit (:max-invocations ctx)}))
-      (update-state! ctx {:state "EXECUTE_VERIFY" :brief_count (count briefs)})
-      (let [branches (execute-all! ctx briefs)]
-        (update-state! ctx {:state "REMEMBER"})
-        (let [memory (remember! ctx branches)]
-          (update-state! ctx {:state "REVIEW"})
-          (let [review (review! ctx branches memory)
-                manifest (publish-run! ctx branches memory review)]
-            (update-state! ctx {:state "CLOSED" :ended_at (human-time)
-                                :published_files (count (:files manifest))})
-            {:run_id (:run-id ctx) :state "CLOSED" :run_path (canonical-path (:run-path ctx))}))))
+    (loop [waves (completed-waves ctx)]
+      (let [prior (last waves)]
+        (if (and prior (not (continuation-authorized? ctx prior)))
+          (close-run! ctx waves
+                      (cond
+                        (not (:continue_research (:review prior))) "review-stopped"
+                        (not (verified-progress? prior)) "no-verified-frontier-delta"
+                        (>= (:wave prior) (:max-waves ctx)) "wave-budget"
+                        :else "invocation-budget"))
+          (let [wave (inc (count waves))]
+            (update-state! ctx {:state "MANAGE" :current_wave wave})
+            (let [manager (manage! ctx wave waves)
+                  briefs (:briefs manager)]
+              (require-initial-briefs! waves manager)
+              (if (empty? briefs)
+                (close-run! ctx waves "manager-stopped")
+                (do
+                  (when (> (wave-cost-after-manager briefs) (remaining-invocations ctx))
+                    (fail! "Manager fan-out cannot fund verification, review, and memory"
+                           {:wave wave :briefs (count briefs)
+                            :remaining (remaining-invocations ctx)}))
+                  (update-state! ctx {:state "EXECUTE_VERIFY" :current_wave wave
+                                      :brief_count (+ (reduce + 0 (map #(count (:branches %)) waves))
+                                                      (count briefs))})
+                  (let [branches (execute-all! ctx wave briefs)]
+                    (update-state! ctx {:state "REVIEW" :current_wave wave})
+                    (let [review (review-wave! ctx wave branches)
+                          wave-value (write-wave! ctx {:wave wave :manager manager
+                                                       :branches branches :review review})]
+                      (recur (conj waves wave-value)))))))))))
     (catch Exception error
       (event! ctx {:event_type "round.failed" :error (.getMessage error) :data (ex-data error)})
       (update-state! ctx {:state "FAILED" :error (.getMessage error)})
@@ -596,16 +767,26 @@
         _ (when-not (:goal opts) (fail! "run requires --goal PATH"))
         goal (validate-goal! problem (:goal opts))
         opts (bounded-options! problem (apply-goal-limits opts goal))
+        preflight (goal-preflight problem goal)
+        _ (when-not (:launchable preflight)
+            (fail! "Goal failed deterministic launch preflight" preflight))
+        _ (when (< (:max-invocations opts) 5)
+            (fail! "Goal cannot fund one manager, builder, verifier, review, and memory"
+                   {:minimum 5 :requested (:max-invocations opts)}))
         run-id (str (timestamp) "_" (format "%06d" (mod (System/nanoTime) 1000000))
                     "_" problem-id "_" (safe-slug (.getName ^File (:file goal))))
         run-path (ensure-dir! (child runs-root run-id))
         snapshot (create-snapshot! problem goal run-path)
-        state {:format_version 1 :run_id run-id :problem_id problem-id
+        state {:format_version 2 :run_id run-id :problem_id problem-id
                :engine_version (active-version) :engine_hash (engine-content-hash)
                :goal_hash (:hash goal) :snapshot_hashes (tree-hashes snapshot)
                :state "CREATED" :started_at (human-time) :invocations 0
+               :deadline_epoch_ms (+ (System/currentTimeMillis)
+                                     (* 60 1000 (:timeout-minutes opts)))
+               :preflight preflight
                :options (select-keys opts [:model :effort :workers :brief-limit
-                                           :max-invocations :timeout-minutes :codex :fixture])}]
+                                           :max-invocations :max-waves :timeout-minutes
+                                           :codex :fixture])}]
     (write-edn! (child run-path "RUN.edn") state)
     (write-json! (child run-path "RUN.json") state)
     (continue-run! (make-context run-path state))))
@@ -650,6 +831,9 @@
         state (read-edn (child run "RUN.edn"))]
     (when-not (= "CLOSED" (:state state))
       (fail! "Only closed runs may be exported" {:run run-id :state (:state state)}))
+    (when-not (or (:meaningful_progress state) (get-in state [:options :fixture]))
+      (fail! "Run has no independently verified frontier delta to export"
+             {:run run-id :stop_reason (:stop_reason state)}))
     (let [bundle-id (str run-id "-" (subs (:goal_hash state) 0 12))
           destination (child (ensure-dir! exports-root) bundle-id)]
       (when (.exists destination) (fail! "Export already exists" {:path (str destination)}))
@@ -665,8 +849,9 @@
               :when (.isFile source)]
         (export-text! source (child destination "results" (.getName task-dir) output)))
       (doseq [[source output]
-              [[(child run "memory" "memory_delta.json") (child destination "memory" "memory_delta.json")]
+               [[(child run "memory" "memory_delta.json") (child destination "memory" "memory_delta.json")]
                [(child run "review" "review.json") (child destination "review" "review.json")]
+               [(child run "review" "waves.json") (child destination "review" "waves.json")]
                [(child run "review" "polya_receipt.json") (child destination "review" "polya_receipt.json")]
                [(child run "published" "manifest.edn") (child destination "published" "manifest.edn")]]]
         (export-text! source output))
@@ -750,12 +935,17 @@
         _ (validate-problem! (:dir problem) (:manifest problem))
         _ (when-not (:goal opts) (fail! "dry-run requires --goal PATH"))
         goal (validate-goal! problem (:goal opts))
-        opts (bounded-options! problem (apply-goal-limits opts goal))]
-    {:status "DRY_RUN_OK" :problem problem-id :problem_status (name (get-in problem [:manifest :status]))
+        opts (bounded-options! problem (apply-goal-limits opts goal))
+        preflight (goal-preflight problem goal)]
+    {:status (if (:launchable preflight) "DRY_RUN_OK" "NOT_LAUNCHABLE")
+     :problem problem-id :problem_status (name (get-in problem [:manifest :status]))
      :goal (canonical-path (:file goal)) :goal_hash (:hash goal)
      :engine_version (active-version)
-     :plan ["manage" "parallel execute + independent verify" "remember" "review" "export"]
-     :budgets (select-keys opts [:workers :brief-limit :max-invocations :timeout-minutes])}))
+     :preflight preflight
+     :plan ["manage" "parallel execute + independent verify" "review progress gate"
+            "iterate while verified progress and budget remain" "remember" "export"]
+     :budgets (select-keys opts [:workers :brief-limit :max-invocations
+                                 :max-waves :timeout-minutes])}))
 
 (defn recursive-delete! [root]
   (when (.exists (io/file root))
@@ -765,12 +955,17 @@
   (let [validation (validate-repository!)
         open-count (count (filter #(= :open (:status %)) (:problems validation)))
         solved-count (count (filter #(= :solved (:status %)) (:problems validation)))
+        poincare (find-problem "poincare-conjecture")
+        inactive-goal (validate-goal! poincare
+                                      (child (:dir poincare) "goals" "example-source-audit.md"))
+        active-goal (validate-goal! poincare
+                                    (child (:dir poincare) "goals" "controller-fixture.md"))
         temp (.toFile (Files/createTempDirectory "polya-bundle-test" (make-array java.nio.file.attribute.FileAttribute 0)))]
     (try
       (write-text! (child temp "goal.md") "safe fixture\n")
       (let [files {"goal.md" (sha256-file (child temp "goal.md"))}
             manifest {:format_version 1 :bundle_id "fixture" :run_id "fixture-run"
-                      :problem_id "poincare-conjecture" :engine_version "v0001"
+                      :problem_id "poincare-conjecture" :engine_version (active-version)
                       :goal_hash (apply str (repeat 64 "0")) :created_at (human-time) :files files}]
         (write-json! (child temp "bundle.json") manifest)
         (inspect-bundle! temp)
@@ -779,12 +974,38 @@
           (when-not tamper-caught (fail! "Tamper fixture was not rejected"))))
       (when-not (= [6 1] [open-count solved-count])
         (fail! "Problem status fixture failed" {:open open-count :solved solved-count}))
+      (when (:launchable (goal-preflight poincare inactive-goal))
+        (fail! "Inactive goal passed deterministic preflight"))
+      (when-not (:launchable (goal-preflight poincare active-goal))
+        (fail! "Active controller fixture failed deterministic preflight"))
+      (let [ctx {:max-waves 3 :max-invocations 20 :invocations (atom 4)}
+            positive-wave {:wave 1
+                           :branches [{:id "TEST" :verifier {:verdict "PASS"}}]
+                           :review {:continue_research true
+                                    :polya_receipt {:advanced_first_open_line true
+                                                    :supporting_brief_ids ["TEST"]}}}
+            unverified-wave (assoc positive-wave :branches
+                                   [{:id "TEST" :verifier {:verdict "REPAIR"}}])
+            mislinked-wave (assoc positive-wave :branches
+                                  [{:id "OTHER" :verifier {:verdict "PASS"}}])]
+        (when-not (continuation-authorized? ctx positive-wave)
+          (fail! "Verified progress did not authorize a successor wave"))
+        (when (continuation-authorized? ctx unverified-wave)
+          (fail! "Unverified progress authorized a successor wave"))
+        (when (continuation-authorized? ctx mislinked-wave)
+          (fail! "Unrelated verifier PASS authorized a successor wave")))
+      (let [zero-brief-caught
+            (try (require-initial-briefs! [] {:manager_review "fixture" :briefs []})
+                 false
+                 (catch Exception _ true))]
+        (when-not zero-brief-caught
+          (fail! "Zero-work initial launch was not rejected")))
       {:status "SELF_TEST_PASS" :problems 7 :open 6 :solved 1
        :engine_hash (get-in validation [:engine :content-hash])}
       (finally (recursive-delete! temp)))))
 
 (defn fixture! []
-  (let [goal (child problems-root "poincare-conjecture" "goals" "example-source-audit.md")
+  (let [goal (child problems-root "poincare-conjecture" "goals" "controller-fixture.md")
         first-pass (with-run-lock
                      #(start-run! "poincare-conjecture"
                                   (assoc default-options :goal (canonical-path goal) :fixture true)))
@@ -834,7 +1055,8 @@
       "runs" (print-result
               {:runs (mapv (fn [run]
                              (select-keys (read-json (child run "RUN.json"))
-                                          [:run_id :problem_id :state :invocations :started_at :updated_at]))
+                                          [:run_id :problem_id :state :invocations :wave_count
+                                           :meaningful_progress :stop_reason :started_at :updated_at]))
                            (run-directories))})
       "resume" (let [id (first rest-args)]
                    (when-not id (fail! "resume requires a run ID"))
