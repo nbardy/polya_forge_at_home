@@ -176,7 +176,7 @@ budgets, and artifacts and then independently checking the mathematical claim.
 
 ## 10. Non-goals for the local alpha
 
-- Executing untrusted contributor code in CI
+- Executing untrusted contributor code during validation
 - Automatically merging results or memory
 - Automatically activating recursive engine code
 - Distributed queues or a central hosted scheduler

@@ -20,7 +20,7 @@
 
 ## v0.3 — public contribution pilot
 
-- GitHub CI for static bundle inspection
+- Platform-independent static bundle inspection
 - Secret scanning and artifact limits
 - Research and engine PR templates
 - Duplicate claim detection

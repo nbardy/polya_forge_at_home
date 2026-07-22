@@ -18,6 +18,6 @@
   independent verification, stage-boundary resume, export, and static inspect.
 - Added seven Millennium problem packs, with Poincaré marked solved/reference.
 - Added public schemas, trust model, governance, contribution protocol,
-  deterministic tests, and static GitHub validation.
+  deterministic tests, and local static validation.
 - Specified swarm-based test-time compute, recursive harness optimization,
   multi-user claim leasing, long-horizon checkpoints, and asynchronous merge.

@@ -99,8 +99,9 @@ afterthoughts.
 - Keep mathematical results separate from harness-change proposals.
 
 The runner is an alpha. Its process isolation is suitable for trusted local
-research checkouts, not for executing hostile third-party code. Public CI must
-only run the non-executing validators.
+research checkouts, not for executing hostile third-party code. Maintainers run
+`bb validate`, `bb test`, and `bb inspect` explicitly; this repository does not
+use GitHub Actions.
 
 ## Lean by design
 
