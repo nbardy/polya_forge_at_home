@@ -1,187 +1,97 @@
-# Pólya Forge at Home specification
+# Pólya Forge specification
 
-## 1. Purpose
+## Purpose
 
-Pólya Forge at Home improves the rate of independently checkable mathematical
-progress. It converts a bounded goal into immutable briefs, private execution
-attempts, independent audits, a memory proposal, a run review, and an
-exportable evidence bundle.
+Forge turns one frozen problem goal into independently audited research
+packets, a candidate problem-memory delta, and a later harness reflection.
+It is an evidence producer, not a truth authority.
 
-The system is a research operating system. It is not a theorem prover, a
-publication venue, an autonomous truth authority, or a representative of any
-prize organization.
-
-## 2. Information flow
+## Fixed graph
 
 ```text
-problem pack + bounded goal
-        |
-        v
-      manage            ambiguity reduction / next-wave selection
-        |
-        v
-  execute branches      bounded parallel derivation/falsification
-        |
-        v
-      verify             independent audit of each builder
-        |
-        v
-       gate              mathematical Pólya receipt only
-        | positive receipt backed by an independent PASS
-        +-------------------------> next manage wave
-        |
-        v
-     remember            terminal problem-local memory proposal
-        |
-        v
-      review             one post-run harness reflection
-        |
-        v
-  sanitized bundle      public, non-executable contribution unit
+PLAN → parallel (BUILD → VERIFY) → freeze packets → PLAN
+  └ empty/budget → REMEMBER → REFLECT → close
 ```
 
-Management and review are convergence points. Execution is parallel only after
-the manager has emitted exact task contracts. Roles are capabilities rather
-than handicapped personas; the immutable brief controls scope.
+`PLAN` emits exact briefs. First-wave briefs have no parents; every later brief
+must cite packet IDs frozen by an earlier wave. Empty briefs stop research.
 
-The local state machine is the atomic worker of a larger distributed design.
-Many users may run independent cells concurrently and submit immutable bundles
-to an asynchronous merge queue. See `DISTRIBUTED_SWARMS.md`.
+`BUILD` owns derivation or experiment. `VERIFY` is a separate call and records
+`PASS`, `REPAIR`, `FAIL`, or `QUARANTINE`. Any verdict may inform a repair or
+falsification child; only `PASS` packets may support terminal memory changes.
 
-## 3. Stable invariants
+`REMEMBER` proposes evidence-linked changes to problem-local memory. It does
+not edit canonical files. `REFLECT` runs afterward and may propose only
+structural harness descendants and regression tests.
 
-1. Every run is finite and names exactly one problem and goal.
-2. A run fingerprints its problem pack, goal, prompts, and schemas.
-3. Workers write only into their attempt directories.
-4. Every mathematical builder receives an independent verifier.
-5. Failures are evidence and are never silently repaired.
-6. Model agreement does not admit a claim.
-7. Problem memory and engine memory are separate.
-8. Old runs and exported bundles are immutable.
-9. Public bundle inspection never executes contributed code.
-10. Recursive engine evolution is proposed by a run but activated separately.
+## Finiteness
 
-The implementation should preserve these invariants with one executable
-controller and plain files for as long as that remains practical. Prompts are
-external Markdown, not opaque strings embedded throughout the controller.
-Candidate self-modification creates a complete versioned descendant and never
-edits the active parent in place. See `LEAN_CORE.md`.
+Every goal fixes:
 
-## 4. State machine
+```clojure
+{:fanout positive-integer
+ :invocations positive-integer
+ :wall-minutes positive-integer}
+```
+
+The engine caps all three. It reserves two terminal calls before research
+fan-out. Invocation reservations are written before processes start, so
+parallel calls cannot overspend the budget. There is no wave-count setting.
+
+## Canonical artifacts
 
 ```text
-CREATED -> MANAGE -> EXECUTE_VERIFY -> GATE -----+-> MANAGE
-                     |                 |         |
-                     |                 +-> REMEMBER -> REVIEW -> CLOSED
-                     +----------------------- FAILED
+run.edn                         immutable run manifest
+input/                          frozen problem and goal inputs
+calls/NNN-task/
+  request.edn                   invocation reservation
+  prompt.md
+  events.jsonl                  raw Codex event stream
+  result.json | error.edn       one terminal call outcome
+packets/WNN-BRIEF.edn           one frozen verified branch
+close.edn                       terminal memory/reflection pointers
 ```
 
-Each completed role has a durable artifact. Every wave freezes its manager
-allocation, builder/verifier branches, and gate before a successor wave may
-start. Resume starts at the first stage whose required terminal artifact is
-absent. Failed attempts are retained;
-rerunning them creates a new attempt number in a later engine version.
+Call directories preserve raw process evidence. A packet is the canonical
+reusable research projection: it embeds the accepted brief, build, verifier,
+artifact hashes, and distinct call numbers. It freezes as soon as its branch
+verifies, so a successful sibling survives another sibling's failure. A failed
+or interrupted call is never overwritten; resume allocates a later call.
 
-v0.2 supports resuming at wave and role boundaries. Mid-process event streams are
-preserved but a killed model invocation itself is not resumed token-for-token.
+The checked-out `engine/` tree and root rules are hashed as one harness. Git
+commits and worktrees provide complete harness versions.
 
-## 5. Directory ownership
+## Packets
 
-- `engine/`: maintained code and immutable versioned prompts/schemas.
-- `problems/<id>/`: problem-maintainer-owned canonical research context.
-- `.forge/runs/<id>/`: controller-owned local run state.
-- `.forge/exports/<id>/`: sanitized export generated from a terminal run.
-- worker attempt directories: single-attempt write ownership.
+A packet is defined by:
 
-## 6. Run artifacts
+- its immutable brief and parent packet IDs;
+- one builder result and any text artifacts found under `artifacts/`;
+- one independent verifier result;
+- artifact paths and hashes.
 
-Every run contains:
+Its ID is derived from that content. Cross-run, forward, and missing parent
+references are rejected.
 
-```text
-RUN.edn
-RUN.json
-events.jsonl
-snapshot/
-briefs/
-attempts/<brief-id>/{execute,verify}/
-waves/WNN/{manager,gate,wave}.json
-memory/
-review/
-published/manifest.edn
-```
+## Export
 
-Raw prompts and model event logs stay in the local run. Exports contain only
-the public allowlist defined by the contribution specification.
+Terminal runs produce two static bundles:
 
-## 7. Recursion
+- research: goal inputs, packets, artifacts, and memory proposal;
+- harness: process facts and post-memory structural proposals.
 
-The reviewer may propose complete prompt, schema, topology, or runner changes.
-The controller records these proposals under `review/engine_changes.json`; it does not
-automatically activate them. Automatic multi-round activation remains disabled
-until signed/versioned proposals, regression replay, and crash-safe activation
-are implemented.
+Each bundle declares one content hash over every path and byte in the bundle.
+Inspection rejects symlinks, non-text or oversized files, and content-hash
+mismatches. It never imports or executes bundle code.
 
-This is deliberately weaker than the original private Forge's finite
-auto-activation mode. Public distribution increases the cost of evaluator
-capture or malicious self-modification, so activation is a separate trust
-decision.
+Negative results are valid evidence and may be exported. Neither export nor a
+model verdict admits mathematics.
 
-The intended successor is **recursive harness optimization**: maintain a
-stable global safety kernel while allowing each problem pack to evolve its own
-manager, prompts, topology, falsifiers, memory policy, tools, and compute
-allocation. Candidate versions compete against frozen fixtures and later run
-receipts; they do not validate themselves.
+## Non-goals
 
-## 7.1 Swarm-based test-time compute
-
-Forge treats long-horizon and parallel inference as separate budget axes.
-Sequential cells extend reasoning duration through durable checkpoints.
-Parallel cells increase candidate and verifier diversity after the work
-contract freezes. Distributed contributors extend both axes across machines
-and calendar time while content-addressed bundles preserve a single auditable
-scientific history.
-
-## 8. Claim maturity
-
-Allowed descriptive states include:
-
-```text
-question
-heuristic
-conjecture
-proved-lemma
-known-theorem
-computational-evidence
-refuted
-unresolved
-```
-
-Repository workflow states are separate:
-
-```text
-submitted
-validated
-independently-reproduced
-accepted-searchable
-admitted
-repaired
-retired
-quarantined
-rejected
-```
-
-## 9. Determinism
-
-The controller, hashes, schemas, fixture outputs, and bundle inspection should
-be deterministic. Language-model research output is not expected to be
-byte-identical. Reproducibility means reconstructing exact inputs, provenance,
-budgets, and artifacts and then independently checking the mathematical claim.
-
-## 10. Non-goals for the local alpha
-
-- Executing untrusted contributor code during validation
-- Automatically merging results or memory
-- Automatically activating recursive engine code
-- Distributed queues or a central hosted scheduler
-- Cryptocurrency, voting, reputation-weighted truth, or prize allocation
-- Claiming that all seven Millennium problems remain open
+- Generic workflow or graph interpretation
+- Runtime prompt/controller version mixing
+- Automatic memory merge or harness activation
+- Executing untrusted contribution code
+- Model-vote truth
+- Claiming repository acceptance satisfies external prize rules

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verdict", "claim_status", "audit", "evidence", "first_open_or_invalid_line", "failure"],
+  "properties": {
+    "verdict": {"enum": ["PASS", "REPAIR", "FAIL", "QUARANTINE"]},
+    "claim_status": {"enum": ["question", "heuristic", "conjecture", "proved-lemma", "known-theorem", "computational-evidence", "refuted", "unresolved"]},
+    "audit": {"type": "string", "minLength": 1},
+    "evidence": {"type": "array", "items": {"type": "string"}},
+    "first_open_or_invalid_line": {"type": "string", "minLength": 1},
+    "failure": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["scope", "surviving_core", "smallest_repair", "reopening_test"],
+          "properties": {
+            "scope": {"type": "string", "minLength": 1},
+            "surviving_core": {"type": "string"},
+            "smallest_repair": {"type": "string", "minLength": 1},
+            "reopening_test": {"type": "string", "minLength": 1}
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,42 +1,23 @@
 # Trust model
 
-## Trusted
+Trusted during a local run:
 
-- The checked-out engine version selected by `engine/ACTIVE_VERSION`
-- The external static kernel and public schemas on the base branch
-- The selected problem pack on the base branch
-- The local operator's explicit goal and launch command
+- the checked-out and hashed `engine/` tree;
+- the selected problem pack and active goal;
+- the local Codex executable and operating system.
 
-## Untrusted or unverified
+Not trusted as mathematical authority:
 
-- Model output
-- Contributor bundles
-- Builder claims about their own proof
-- Recalled theorems without primary-source checks
-- Generated runner or prompt changes
-- Raw files attached to research contributions
+- builders, verifiers, planners, memory proposals, or harness reflections;
+- repository maintainers acting without the pack's external admission method;
+- contributor bundles before static and substantive review.
 
-## Controls
+The controller isolates each model call in its own writable directory, freezes
+inputs, preserves call failures, and links later work to hashed packets.
+These controls provide provenance, not proof.
 
-- Content hashing before and after a run
-- Relative-path and symlink rejection
-- Bounded invocations, workers, and time
-- Structured output schemas
-- Independent verifier for every builder
-- Single canonical controller writer
-- Wave/role-boundary checkpoints and explicit resume
-- Sanitized export allowlist
-- Non-executing public inspection
-- Separate activation of recursive engine changes
+Bundle inspection is deliberately static. It checks text-only paths, file
+sets, hashes, and symlinks; it does not execute contributor code.
 
-## Known local-alpha limitations
-
-Codex attempts use the local CLI's `workspace-write` sandbox. This constrains
-writes but should not be treated as a complete hostile-code or confidentiality
-boundary. Run only from a checkout that contains no secrets. A future public
-beta requires an ephemeral capsule/container design and provider-specific
-credential brokering.
-
-Formal kernel checking validates a formal statement, not that the statement is
-the right translation of the prize problem. Statement fidelity and relevance
-still require independent review.
+The local alpha is not a hostile-code sandbox. Engine pull requests and any
+future executable artifacts require separate review and sandboxing.

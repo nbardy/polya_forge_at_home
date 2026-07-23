@@ -1,13 +1,6 @@
 {:format-version 1
  :id "birch-swinnerton-dyer"
- :title "Birch and Swinnerton–Dyer Conjecture"
+ :title "Birch and Swinnerton-Dyer Conjecture"
  :status :open
- :target "target.md"
- :instructions "AGENTS.md"
- :memory "memory/KEY_LEARNINGS.md"
- :catalog "results/RESULTS_CATALOG.md"
- :retired-routes "results/RETIRED_ROUTES.md"
- :goals "goals"
  :official-source "https://www.claymath.org/millennium/birch-and-swinnerton-dyer-conjecture/"
- :admission {:mechanisms #{:kernel-checked-formalization :external-human-review}}
- :budgets {:max-briefs 3 :max-workers 3 :max-invocations 96 :max-wall-minutes 720}}
+ :admission {:mechanisms #{:kernel-checked-formalization :external-human-review}}}

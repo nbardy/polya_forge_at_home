@@ -4,19 +4,13 @@
   "title": "Pólya Forge contribution bundle",
   "type": "object",
   "additionalProperties": false,
-  "required": ["format_version", "bundle_id", "run_id", "problem_id", "engine_version", "goal_hash", "created_at", "files"],
+  "required": ["format_version", "kind", "run_id", "problem_id", "engine_hash", "content_hash"],
   "properties": {
-    "format_version": {"const": 1},
-    "bundle_id": {"type": "string"},
+    "format_version": {"const": 2},
+    "kind": {"enum": ["research", "harness"]},
     "run_id": {"type": "string"},
     "problem_id": {"type": "string"},
-    "engine_version": {"type": "string"},
-    "goal_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
-    "created_at": {"type": "string"},
-    "files": {
-      "type": "object",
-      "additionalProperties": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
-    }
+    "engine_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "content_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
   }
 }
-

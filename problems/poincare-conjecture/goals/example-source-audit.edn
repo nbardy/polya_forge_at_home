@@ -1,0 +1,13 @@
+{:format-version 1
+ :id "poincare-source-audit-example"
+ :status :example
+ :problem "poincare-conjecture"
+ :objective "Map one named lemma in a maintainer-supplied primary source."
+ :deliverable "A source-faithful statement, dependencies, and planted-fault audit."
+ :endpoint-edge "Solved-problem benchmark only."
+ :first-open-line "Pin the primary-source lemma, page, and content hash."
+ :inputs ["The selected primary source" "The solved reference problem pack"]
+ :exclusions ["Novelty or prize claims" "Reconstruction from memory"]
+ :completion "Exact locator, statement, dependency map, planted fault, and verifier disposition."
+ :kill "The source cannot be obtained or the statement cannot be pinned."
+ :budget {:fanout 1 :invocations 5 :wall-minutes 60}}

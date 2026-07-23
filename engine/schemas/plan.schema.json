@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["briefs"],
+  "properties": {
+    "briefs": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "parent_packet_ids", "objective", "endpoint_edge", "first_open_line", "inputs", "exclusions", "cheapest_falsifier", "completion_criteria", "kill_criteria"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[A-Z][A-Z0-9_-]{0,31}$"},
+          "parent_packet_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "objective": {"type": "string", "minLength": 1},
+          "endpoint_edge": {"type": "string", "minLength": 1},
+          "first_open_line": {"type": "string", "minLength": 1},
+          "inputs": {"type": "array", "items": {"type": "string"}},
+          "exclusions": {"type": "array", "items": {"type": "string"}},
+          "cheapest_falsifier": {"type": "string", "minLength": 1},
+          "completion_criteria": {"type": "string", "minLength": 1},
+          "kill_criteria": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}

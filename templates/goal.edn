@@ -1,0 +1,13 @@
+{:format-version 1
+ :id "replace-with-stable-id"
+ :status :proposed
+ :problem "replace-with-problem-id"
+ :objective "One exact bounded objective."
+ :deliverable "One exact claim or research asset."
+ :endpoint-edge "How the deliverable touches the official endpoint."
+ :first-open-line "The first unresolved statement or experiment."
+ :inputs ["Pinned sources, definitions, and prior packets."]
+ :exclusions ["Explicitly excluded work and claims."]
+ :completion "Observable completion criteria."
+ :kill "Observable conditions that retire this route."
+ :budget {:fanout 3 :invocations 24 :wall-minutes 240}}

@@ -1,13 +1,14 @@
-{:paths ["engine"]
+{:paths ["engine" "test"]
  :tasks
- {doctor  {:doc "Check local dependencies" :task (apply shell "bb" "engine/forge.clj" "doctor" *command-line-args*)}
-  problems {:doc "List installed problem packs" :task (apply shell "bb" "engine/forge.clj" "problems" *command-line-args*)}
-  validate {:doc "Validate engine and problem packs" :task (apply shell "bb" "engine/forge.clj" "validate" *command-line-args*)}
-  test {:doc "Run deterministic no-model tests" :task (apply shell "bb" "engine/forge.clj" "test" *command-line-args*)}
-  fixture {:doc "Exercise a complete no-model round and export" :task (apply shell "bb" "engine/forge.clj" "fixture" *command-line-args*)}
-  dry-run {:doc "Validate and print a run plan" :task (apply shell "bb" "engine/forge.clj" "dry-run" *command-line-args*)}
-  run {:doc "Run one bounded research round" :override-builtin true :task (apply shell "bb" "engine/forge.clj" "run" *command-line-args*)}
-  runs {:doc "List local runs" :task (apply shell "bb" "engine/forge.clj" "runs" *command-line-args*)}
-  resume {:doc "Resume an interrupted run" :task (apply shell "bb" "engine/forge.clj" "resume" *command-line-args*)}
-  export {:doc "Export a terminal run bundle" :task (apply shell "bb" "engine/forge.clj" "export" *command-line-args*)}
-  inspect {:doc "Inspect a bundle without executing it" :task (apply shell "bb" "engine/forge.clj" "inspect" *command-line-args*)}}}
+ {check {:doc "Validate the harness and problem packs"
+         :task (apply shell "bb" "engine/forge.clj" "check" *command-line-args*)}
+  run {:doc "Run one bounded research goal" :override-builtin true
+       :task (apply shell "bb" "engine/forge.clj" "run" *command-line-args*)}
+  resume {:doc "Resume an interrupted run"
+          :task (apply shell "bb" "engine/forge.clj" "resume" *command-line-args*)}
+  export {:doc "Export separate research and harness bundles"
+          :task (apply shell "bb" "engine/forge.clj" "export" *command-line-args*)}
+  inspect {:doc "Statically inspect a bundle"
+           :task (apply shell "bb" "engine/forge.clj" "inspect" *command-line-args*)}
+  test {:doc "Run deterministic no-model tests"
+        :task (apply shell "bb" "test/runner.clj" *command-line-args*)}}}

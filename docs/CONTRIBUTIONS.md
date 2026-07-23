@@ -1,74 +1,37 @@
-# Contribution bundle protocol
+# Contribution bundles
 
-## Bundle purpose
+`bb export <run-id>` produces two independent bundles.
 
-A bundle is the smallest public, reviewable research unit. It must let a
-reviewer answer:
+## Research bundle
 
-- What exact question was attempted?
-- What inputs and exclusions were used?
-- What was derived, computed, falsified, or verified?
-- What failed?
-- Which agent or tool produced each artifact?
-- What changed in the dependency graph?
-- What independent review remains?
+Contains the frozen goal and problem inputs, immutable branch packets, their
+text artifacts, and the terminal problem-memory proposal.
 
-## Export allowlist
+It must let a reviewer identify:
 
-The current engine exports only:
+- the exact objective and first open line;
+- every claim status, assumption, failed step, and remaining check;
+- each brief's parent packet IDs;
+- the independent verifier evidence;
+- what future work the proposed memory change would alter.
 
-```text
-bundle.json
-goal.md
-target.md
-briefs/*.json
-briefs/*.md
-results/*/executor.json
-results/*/verifier.json
-memory/memory_delta.json
-review/review.json
-review/waves.json
-review/polya_receipt.json
-published/manifest.edn
-```
+## Harness bundle
 
-Raw event logs, stderr, full prompts, credentials, environment variables,
-unlisted attempt files, generated binaries, and absolute local paths are not
-exported.
+Contains run budgets, process outcomes, and the harness-only reflection emitted
+after memory. It contains no mathematical progress receipt.
 
-## Validation
+Research results and engine changes must use separate pull requests.
 
-`bb inspect` performs non-executing checks:
+## Static inspection
 
-- Required files and format version
-- SHA-256 manifest integrity
-- No symlinks
-- No absolute paths or `..` traversal in the bundle manifest
-- File-count and file-size limits
-- Problem ID, goal hash, engine version, and run ID presence
-- Separation of mathematical and engine-change proposals
+Each bundle has one `bundle.json` declaring its kind, run ID, engine hash, and
+one content hash over its complete file tree. `bb inspect` rejects:
 
-Inspection establishes packaging integrity only. It does not validate a proof.
+- absolute, escaping, or symlinked paths;
+- non-text, oversized, symlinked, or content-hash-mismatched files.
 
-## Review pipeline
+Inspection never executes bundle content.
 
-```text
-pull request
-  -> static bundle inspection
-  -> provenance/privacy triage
-  -> duplicate and scope check
-  -> independent mathematical reproduction or audit
-  -> problem-maintainer decision
-  -> optional external admission gate
-```
-
-Research PRs should contain exactly one primary claim or one explicitly scoped
-family of mechanically identical claims. Broad archives and raw chat dumps are
-not reviewable contributions.
-
-## Learning proposals
-
-A bundle may propose a problem-local learning. Promotion requires verified,
-non-obvious, behavior-changing evidence and a completed closeout review.
-Engine-wide process learnings require evidence across problems or a precise
-reason the lesson is domain-independent.
+`PASS` means an internal verifier call passed. A claim becomes admitted only
+through the external mechanism declared by its problem pack. Repository merge
+does not satisfy any prize body's rules.

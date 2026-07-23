@@ -1,0 +1,6 @@
+{:model "gpt-5.6-sol"
+ :effort "high"
+ :codex "codex"
+ :caps {:fanout 3
+        :invocations 96
+        :wall-minutes 720}}

@@ -1,86 +1,47 @@
-# Lean core architecture
+# Lean core
 
-Pólya Forge at Home should remain understandable by one contributor in one
-sitting. The initial architecture is deliberately **one executable harness plus
-plain-text problem packs**. Git is the first collaboration database and merge
-queue; v0.1 does not require a server, scheduler, or application framework.
-
-## What belongs where
+Forge is one fixed research loop over plain files:
 
 ```text
-engine/forge.clj                    single executable controller
-engine/versions/<version>/
-  version.edn                       capability and file map
-  prompts/*.md                      versioned model-facing prompts
-  schemas/*.json                    versioned output contracts
-problems/<problem-id>/
-  target.md                         exact public target
-  AGENTS.md                         problem-local research rules
-  goals/                            finite work contracts
-  memory/                           curated problem-local lessons
-  results/                          accepted catalog and retired routes
-.forge/runs/<run-id>/               ignored local run state
-.forge/exports/<bundle-id>/         reviewable, non-executable contribution
+plan → parallel build/verify → freeze packets → repeat
+                                          ↓
+                              memory → reflection
 ```
 
-Stable orchestration strings may remain in `forge.clj`. Research prompts,
-evaluation rubrics, problem statements, and learned instructions stay in
-Markdown so their history and pull-request diffs are readable without parsing
-code. Schemas remain separate because they are public contracts.
+The controller keeps only mechanisms that protect a reproduced invariant or
+directly change the research graph:
 
-## The recursive loop
-
-1. Freeze and hash the active controller version, prompts, schemas, problem
-   pack, and bounded goal.
-2. Run the local research swarm and preserve its exact artifacts and failures.
-3. Evaluate mathematical progress separately from harness performance.
-4. Emit proposed descendant code, prompt, schema, or topology changes.
-5. Replay deterministic fixtures and relevant regression cases against the
-   descendant.
-6. Export useful research and the harness diff for human review and a pull
-   request.
-7. Activate a descendant only as a new version; never rewrite its parent.
-
-The current controller fingerprints the executable harness and versioned
-prompt/schema tree, and snapshots the canonical research inputs into each run.
-It records successor proposals but does not automatically execute or activate
-contributed code. A future auto-evolution mode may materialize a complete
-candidate descendant—including `forge.clj`, prompts, schemas, provenance, and
-evaluation—inside an isolated candidate directory. That candidate must not
-mutate the checked-out parent in place.
-
-## Complexity budget
-
-New infrastructure must protect a demonstrated invariant or remove a measured
-bottleneck. The core is expected to keep these safeguards:
-
-- finite budgets and interruption/resume;
-- immutable inputs, hashes, and provenance;
+- finite calls, fan-out, and one global deadline;
+- frozen inputs and a hash of the whole checked-out harness;
 - independent verification;
-- deterministic fixtures and static bundle validation;
-- non-executing intake of public contributions;
-- separate activation of recursive harness proposals.
+- content-linked successor packets;
+- preserved failures and deterministic resume;
+- memory before harness reflection;
+- static, non-executing export.
 
-Everything else should first be attempted with files, subprocesses, and Git.
-In particular, databases, queues, hosted coordinators, plugin systems, and
-automatic code activation are not prerequisites for the local alpha.
+There is deliberately no database, scheduler, hosted service, progress-score
+taxonomy, generic graph DSL, automatic activation, or GitHub Actions workflow.
 
-Complexity is not evidence of evolution. A descendant earns activation by
-fixing a reproduced defect or beating a frozen harness benchmark through a
-substantive mechanism such as a better search graph, fan-out policy, verifier
-placement, tool allocation, or stopping rule. Longer prompts, extra labels,
-and additional self-reported scores do not qualify by themselves.
+Raw calls preserve process evidence; one immutable packet is the canonical
+reusable result of each verified branch. Git versions the controller, prompts,
+schemas, and root rules together.
+A descendant earns merge by fixing a reproduced bug or beating a frozen
+benchmark through a structural change—not through more prose, labels, or model
+agreement.
 
-## Design test
+The production code is separated by boundary, not by framework layer:
 
-A contributor should be able to answer these questions by reading
-`engine/forge.clj`, the active `version.edn`, and the five prompt files:
+```text
+engine/forge.clj          command dispatch
+engine/forge/core.clj     research and resume
+engine/forge/bundle.clj   export and static inspection
+```
 
-- What exact context reaches each model call?
-- What can each stage write?
-- What makes a run finite and resumable?
-- Which artifacts are public?
-- How is a proposed child harness compared and promoted?
+Tests and fake model responses live outside the production controller.
 
-If answering them requires reconstructing a distributed framework, the local
-core has become too complicated.
+Before adding machinery, ask:
+
+1. Which reproduced failure or frozen benchmark justifies it?
+2. Can an existing packet, budget, verifier, or file convention express it?
+3. Does it create a second source of truth?
+4. Can one contributor still reconstruct the complete run in one sitting?

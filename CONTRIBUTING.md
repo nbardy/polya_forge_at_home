@@ -18,7 +18,7 @@ change files under `engine/`.
 ## Engine contribution
 
 Engine changes require a stated hypothesis, evidence, expected benefit,
-regression risk, and cheapest test. Run `bb validate` and `bb test`. Engine
+regression risk, and cheapest test. Run `bb check` and `bb test`. Engine
 changes may not promote mathematical claims produced during their development.
 
 ## Review outcomes
@@ -33,4 +33,3 @@ changes may not promote mathematical claims produced during their development.
 All contributors retain attribution through bundle IDs, hashes, and Git
 history. Prize attribution is governed by the relevant external institution,
 not by this repository.
-

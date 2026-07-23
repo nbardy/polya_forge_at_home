@@ -1,24 +1,21 @@
 # Changelog
 
-## Unreleased — v0.2.0
+## Unreleased
 
-- Added deterministic active-goal preflight before model invocation.
-- Changed wall time from a per-call timeout to one global run deadline.
-- Added bounded iterative research waves with manager-directed parallel
-  fan-out, independent verification, and mathematical receipt-gated
-  continuation, followed by one terminal harness reflection.
-- Reject zero-work initial launches and prevent export of runs without an
-  independently verified frontier delta.
-- Added a dedicated deterministic controller fixture and preserved v0.1 as an
-  immutable engine version.
+- Reduced the controller to one fixed packet-linked research loop.
+- Replaced runtime harness-version metadata with whole-harness Git versions.
+- Removed the model progress gate, duplicate receipts, wave limits, duplicate
+  artifacts, and subjective export blocking.
+- Added parent-linked successor briefs and content-derived packet IDs.
+- Made run state append-only: one manifest, immutable calls, independently
+  frozen branch packets, and one close record.
+- Added a real mid-wave interruption/resume fixture.
+- Split static exports into research and harness bundles.
+- Kept GitHub Actions disabled.
 
 ## v0.1.0 — 2026-07-23
 
-- Created the standalone Pólya Forge at Home repository.
-- Added a generic Babashka engine with validation, bounded Codex rounds,
-  independent verification, stage-boundary resume, export, and static inspect.
-- Added seven Millennium problem packs, with Poincaré marked solved/reference.
-- Added public schemas, trust model, governance, contribution protocol,
-  deterministic tests, and local static validation.
-- Specified swarm-based test-time compute, recursive harness optimization,
-  multi-user claim leasing, long-horizon checkpoints, and asynchronous merge.
+- Created the standalone local-first repository and seven Millennium problem
+  packs.
+- Added bounded Codex research, independent verification, resume, static
+  bundles, and non-executing inspection.

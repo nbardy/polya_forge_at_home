@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["claim", "claim_status", "work", "first_open_line", "evidence", "failed_steps", "assumption_checks", "verification_remaining", "next_actions"],
+  "properties": {
+    "claim": {"type": "string", "minLength": 1},
+    "claim_status": {"enum": ["question", "heuristic", "conjecture", "proved-lemma", "known-theorem", "computational-evidence", "refuted", "unresolved"]},
+    "work": {"type": "string", "minLength": 1},
+    "first_open_line": {"type": "string", "minLength": 1},
+    "evidence": {"type": "array", "items": {"type": "string"}},
+    "failed_steps": {"type": "array", "items": {"type": "string"}},
+    "assumption_checks": {"type": "array", "items": {"type": "string"}},
+    "verification_remaining": {"type": "array", "items": {"type": "string"}},
+    "next_actions": {"type": "array", "items": {"type": "string"}}
+  }
+}
