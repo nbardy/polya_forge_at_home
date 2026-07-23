@@ -13,15 +13,15 @@
         "required": ["id", "parent_packet_ids", "objective", "endpoint_edge", "first_open_line", "inputs", "exclusions", "cheapest_falsifier", "completion_criteria", "kill_criteria"],
         "properties": {
           "id": {"type": "string", "pattern": "^[A-Z][A-Z0-9_-]{0,31}$"},
-          "parent_packet_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
-          "objective": {"type": "string", "minLength": 1},
-          "endpoint_edge": {"type": "string", "minLength": 1},
-          "first_open_line": {"type": "string", "minLength": 1},
+          "parent_packet_ids": {"type": "array", "items": {"type": "string"}},
+          "objective": {"type": "string", "pattern": ".+"},
+          "endpoint_edge": {"type": "string", "pattern": ".+"},
+          "first_open_line": {"type": "string", "pattern": ".+"},
           "inputs": {"type": "array", "items": {"type": "string"}},
           "exclusions": {"type": "array", "items": {"type": "string"}},
-          "cheapest_falsifier": {"type": "string", "minLength": 1},
-          "completion_criteria": {"type": "string", "minLength": 1},
-          "kill_criteria": {"type": "string", "minLength": 1}
+          "cheapest_falsifier": {"type": "string", "pattern": ".+"},
+          "completion_criteria": {"type": "string", "pattern": ".+"},
+          "kill_criteria": {"type": "string", "pattern": ".+"}
         }
       }
     }
