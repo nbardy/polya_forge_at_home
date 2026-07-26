@@ -15,7 +15,10 @@
 (def receipts-dir (fs/file forge-dir "activations"))
 (def runs-dir (fs/file forge-dir "runs"))
 (def campaigns-dir (fs/file forge-dir "campaigns"))
-(def launcher-files ["forge.clj" "kernel/launcher.clj" "bb.edn"])
+(def launcher-files
+  ["forge.clj" "kernel/launcher.clj" "bb.edn" ".codex/config.toml"
+   "test/runner.clj" "test/forge/fixture.clj" "test/kernel/fixture.clj"
+   "problems/poincare-conjecture/goals/controller-fixture.edn"])
 (def mutation-keys
   #{:changed_file :hypothesis :evidence_refs :expected_benefit
     :regression_risk :benchmark_test})
@@ -106,6 +109,8 @@
           future {:version (next-version) :sha256 (tree-sha source)}
           _ (test-engine! source future)
           pin (install! source)]
+      (guard! (= (:sha256 future) (:sha256 pin))
+              "Installed bootstrap engine changed after testing")
       (receipt! {:event :bootstrap :to pin})
       (atomic! current-file pin)
       pin)))
@@ -368,6 +373,8 @@
       (let [future {:version (next-version) :sha256 digest}
             _ (test-engine! source future)
             installed (install! source)]
+        (guard! (= digest (:sha256 installed))
+                "Installed source engine changed after testing")
         (receipt! {:event :adopt :from parent :to installed})
         (atomic! current-file installed)
         installed))))

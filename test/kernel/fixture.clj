@@ -42,9 +42,12 @@
           (launcher/atomic! (fs/file run "close.edn")
                             {:stop :fixture
                              :reflection {:call 1 :result result}})
-          (with-redefs [launcher/engine-command! (fn [& _] 0)
-                        launcher/process! (fn [& _] 0)]
-            (launcher/candidate! id parent))
+          (let [gate-calls (atom 0)]
+            (with-redefs [launcher/test-engine!
+                          (fn [_ pin] (swap! gate-calls inc) pin)]
+              (launcher/candidate! id parent))
+            (launcher/guard! (= 1 @gate-calls)
+                             "Candidate activation skipped the fixed engine gate"))
           (let [active (launcher/current!)]
             (launcher/guard! (= "v0002" (:version active))
                              "Candidate was not activated")
