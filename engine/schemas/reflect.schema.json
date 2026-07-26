@@ -2,24 +2,26 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["proposals"],
+  "required": ["assessment", "mutation"],
   "properties": {
-    "proposals": {
-      "type": "array",
-      "items": {
+    "assessment": {"type": "string", "minLength": 1},
+    "mutation": {
+      "anyOf": [
+        {"type": "null"},
+        {
         "type": "object",
         "additionalProperties": false,
-        "required": ["mechanism", "hypothesis", "evidence_refs", "structural_change", "expected_benefit", "regression_risk", "benchmark_test"],
+        "required": ["changed_file", "hypothesis", "evidence_refs", "expected_benefit", "regression_risk", "benchmark_test"],
         "properties": {
-          "mechanism": {"enum": ["invariant", "topology", "roles", "tools", "search-policy", "resource-allocation"]},
-          "hypothesis": {"type": "string", "pattern": ".+"},
-          "evidence_refs": {"type": "array", "minItems": 1, "items": {"type": "string"}},
-          "structural_change": {"type": "string", "pattern": ".+"},
-          "expected_benefit": {"type": "string", "pattern": ".+"},
-          "regression_risk": {"type": "string", "pattern": ".+"},
-          "benchmark_test": {"type": "string", "pattern": ".+"}
+          "changed_file": {"type": "string", "minLength": 1},
+          "hypothesis": {"type": "string", "minLength": 1},
+          "evidence_refs": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+          "expected_benefit": {"type": "string", "minLength": 1},
+          "regression_risk": {"type": "string", "minLength": 1},
+          "benchmark_test": {"type": "string", "minLength": 1}
         }
-      }
+        }
+      ]
     }
   }
 }

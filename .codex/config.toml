@@ -1,0 +1,18 @@
+[permissions.polya-forge-engine]
+description = "Run evolvable Forge code without write access to its kernel or source."
+
+[permissions.polya-forge-engine.filesystem]
+":minimal" = "read"
+":tmpdir" = "write"
+":slash_tmp" = "write"
+
+[permissions.polya-forge-engine.filesystem.":workspace_roots"]
+"." = "read"
+"**/*.env" = "deny"
+
+[permissions.polya-forge-engine.network]
+enabled = true
+
+[permissions.polya-forge-engine.network.domains]
+"**.openai.com" = "allow"
+"**.chatgpt.com" = "allow"

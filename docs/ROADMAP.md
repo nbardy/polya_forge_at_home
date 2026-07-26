@@ -5,9 +5,12 @@
 - Generic problem-pack discovery and validation
 - Seven Millennium target maps
 - Bounded local Codex round
+- One-file inert harness candidate after each reflected terminal run
+- Between-run validation, activation record, and automatic rollback
+- Problem-local candidate memory across runs
 - Stage-boundary resume
 - Sanitized bundle export and static inspection
-- Deterministic controller tests
+- Three lean controller smoke tests
 
 ## v0.2 — reliability
 
@@ -27,12 +30,11 @@
 - Maintainer signing and admission receipts
 - One solved benchmark pack with known-good and known-bad submissions
 
-## v0.4 — safe recursive evolution
+## v0.4 — hardened recursive evolution
 
 - Signed successor engine packages
-- Sandboxed regression execution
-- Finite multi-round activation records
-- Automatic rollback on invariant failure
+- Cross-platform sandbox enforcement fixtures
+- Historical fixture tournaments and canary activation
 - Longitudinal evidence for prompt/topology changes
 
 ## v0.5 — distributed home swarm

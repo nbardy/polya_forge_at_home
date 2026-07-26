@@ -11,15 +11,18 @@ There are two contribution types. Do not combine them in one pull request.
 5. Open a pull request containing the sanitized bundle and a concise statement
    of the claimed dependency-graph change.
 
-A research contribution may propose a result, correction, refutation,
-reproduction, source audit, formalization, or memory candidate. It may not
+A research contribution attacks its frozen endpoint line. A source audit,
+formalization, computation, lemma, or memory candidate produced along the way
+is fallback salvage unless it directly discharges that line; it must not be
+claimed as progress for independent usefulness. Research contributions may not
 change files under `engine/`.
 
 ## Engine contribution
 
 Engine changes require a stated hypothesis, evidence, expected benefit,
 regression risk, and cheapest test. Run `bb check` and `bb test`. Engine
-changes may not promote mathematical claims produced during their development.
+changes may not promote mathematical claims produced during their development
+or improve their score by rewarding partial-work volume.
 
 ## Review outcomes
 

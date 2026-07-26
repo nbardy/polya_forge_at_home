@@ -17,6 +17,9 @@ Those paths are conventions, not configurable aliases.
 `problem.edn` contains only identity, status, official source, and external
 admission mechanisms. A goal contains the bounded objective, endpoint edge,
 first open line, inputs, exclusions, completion/kill criteria, and run budget.
+Its objective, endpoint edge, and first open line define one direct attack and
+are copied unchanged into every brief. Partial byproducts may be remembered
+only as non-completing salvage.
 
 Mathematical memory never crosses packs implicitly. A reusable cross-problem
 statement needs its own scope and verification. Running one goal never modifies

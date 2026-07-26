@@ -19,5 +19,9 @@ These controls provide provenance, not proof.
 Bundle inspection is deliberately static. It checks text-only paths, file
 sets, hashes, and symlinks; it does not execute contributor code.
 
-The local alpha is not a hostile-code sandbox. Engine pull requests and any
-future executable artifacts require separate review and sandboxing.
+The immutable launcher treats an evolved engine as hostile repository code. A
+fixed Codex permission profile gives it read-only source access and exact
+writes only to its assigned run, same-problem memory, requested export, and
+temporary state. Candidate checks use the same boundary. This does not sandbox
+the operating system or the trusted Codex executable, establish mathematical
+truth, or make executable contributions safe to merge without review.

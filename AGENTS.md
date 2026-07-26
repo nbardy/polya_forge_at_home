@@ -4,12 +4,23 @@ Pólya Forge at Home produces research evidence, not truth by consensus.
 
 ## Design philosophy
 
-The core exists to increase the rate of independently verified progress toward
-each problem pack's official endpoint. A run that does not solve the problem
-must leave future runs better equipped: it should advance a frozen open line,
-remove an assumption, kill a precisely stated route, or add a reusable verified
-research asset. Merely completing a lifecycle, spending more tokens, adding
-more labels, or lengthening prompts is not progress.
+The official endpoint is the sole research objective and the sole measure of
+harness quality. Every goal and every research brief must directly attack the
+goal's frozen first missing implication. Fan-out may try genuinely different
+strategies, roles, or graph structures, but every branch must remain on that
+same implication.
+
+Reusable chunks are never planning objectives. A lemma, source audit,
+formalization, computation, or other useful byproduct recovered from an
+unsuccessful direct attack is fallback salvage only. It scores zero by itself
+and must never become a goal, deliverable, completion criterion, continuation
+reason, or harness-quality signal. Derive whatever the direct attack requires,
+then preserve surviving partial work by pointer after the attack ends. Any
+harness mutation that weakens this endpoint-first rule degrades quality and
+must fail regression and activation.
+
+Merely completing a lifecycle, spending more tokens, creating more packets or
+memory, adding labels, or lengthening prompts is not progress.
 
 Keep the controller lean. Add machinery only when it fixes a reproduced defect,
 protects a non-negotiable invariant, or improves a frozen benchmark. Prefer a
@@ -49,6 +60,9 @@ evidence or activate its own proposal.
    inside their problem pack.
 10. Never claim that repository acceptance satisfies an external prize body's
     rules.
+11. Every planned brief must preserve its goal's exact objective, endpoint
+    edge, and first open line. Alternate strategies may vary; side objectives
+    may not.
 
 ## Required research output
 

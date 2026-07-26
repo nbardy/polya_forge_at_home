@@ -1,14 +1,21 @@
-{:paths ["engine" "test"]
+{:paths ["." "engine" "test"]
  :tasks
  {check {:doc "Validate the harness and problem packs"
-         :task (apply shell "bb" "engine/forge.clj" "check" *command-line-args*)}
+         :task (apply shell "bb" "forge.clj" "check" *command-line-args*)}
   run {:doc "Run one bounded research goal" :override-builtin true
-       :task (apply shell "bb" "engine/forge.clj" "run" *command-line-args*)}
+       :task (apply shell "bb" "forge.clj" "run" *command-line-args*)}
   resume {:doc "Resume an interrupted run"
-          :task (apply shell "bb" "engine/forge.clj" "resume" *command-line-args*)}
+          :task (apply shell "bb" "forge.clj" "resume" *command-line-args*)}
+  campaign {:doc "Run 1..100 sequential rounds"
+            :task (apply shell "bb" "forge.clj" "campaign" *command-line-args*)}
+  campaign-resume {:doc "Resume an interrupted campaign"
+                   :task (apply shell "bb" "forge.clj" "campaign-resume"
+                                *command-line-args*)}
+  adopt {:doc "Test and activate the checked-in engine source"
+         :task (apply shell "bb" "forge.clj" "adopt" *command-line-args*)}
   export {:doc "Export separate research and harness bundles"
-          :task (apply shell "bb" "engine/forge.clj" "export" *command-line-args*)}
+          :task (apply shell "bb" "forge.clj" "export" *command-line-args*)}
   inspect {:doc "Statically inspect a bundle"
-           :task (apply shell "bb" "engine/forge.clj" "inspect" *command-line-args*)}
+           :task (apply shell "bb" "forge.clj" "inspect" *command-line-args*)}
   test {:doc "Run deterministic no-model tests"
         :task (apply shell "bb" "test/runner.clj" *command-line-args*)}}}

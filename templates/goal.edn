@@ -2,10 +2,10 @@
  :id "replace-with-stable-id"
  :status :proposed
  :problem "replace-with-problem-id"
- :objective "One exact bounded objective."
- :deliverable "One exact claim or research asset."
- :endpoint-edge "How the deliverable touches the official endpoint."
- :first-open-line "The first unresolved statement or experiment."
+ :objective "Directly close or refute one exact missing implication."
+ :deliverable "Verified closure or refutation of that implication; partial byproducts are non-completing salvage only."
+ :endpoint-edge "The exact implication on an end-to-end route to the official endpoint."
+ :first-open-line "The literal first missing implication on that route."
  :inputs ["Pinned sources, definitions, and prior packets."]
  :exclusions ["Explicitly excluded work and claims."]
  :completion "Observable completion criteria."

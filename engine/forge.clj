@@ -1,6 +1,5 @@
 #!/usr/bin/env bb
 (require '[cheshire.core :as json]
-         '[forge.bundle :as bundle]
          '[forge.core :as core])
 (defn output [value] (println (json/generate-string value {:pretty true})))
 (def usage
@@ -10,11 +9,13 @@
   (let [[command a b] args]
     (case (or command "help")
       "check" (output (core/validate-repository))
-      "run" (output (core/with-lock #(core/start-run (need a "run requires a problem ID")
-                                                    (need b "run requires a goal path") {})))
-      "resume" (output (core/with-lock #(core/resume-run (need a "resume requires a run ID") {})))
-      "export" (output (core/with-lock #(bundle/export-run (need a "export requires a run ID"))))
-      "inspect" (output (bundle/inspect-bundle (need a "inspect requires a path")))
+      "run" (output (core/start-run (need a "run requires a problem ID")
+                                    (need b "run requires a goal path") {}))
+      "resume" (output (core/resume-run (need a "resume requires a run ID") {}))
+      "export" (output ((requiring-resolve 'forge.bundle/export-run)
+                        (need a "export requires a run ID")))
+      "inspect" (output ((requiring-resolve 'forge.bundle/inspect-bundle)
+                         (need a "inspect requires a path")))
       "help" (println usage)
       (core/fail "Unknown command" {:command command}))))
 (try

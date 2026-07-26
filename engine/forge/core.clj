@@ -1,11 +1,18 @@
 (ns forge.core
+  "One bounded evidence loop is evolvable because no fixed topology is optimal.
+   Exact endpoint briefs and independent verification protect selection quality;
+   frozen packets make parallel work resumable; terminal memory prevents repeats;
+   reflection changes only the next version, never its own evidence."
   (:require [babashka.fs :as fs] [babashka.process :as process]
             [cheshire.core :as json] [clojure.edn :as edn] [clojure.string :as str])
-  (:import [java.io RandomAccessFile] [java.nio.charset StandardCharsets]
+  (:import [java.io BufferedReader FileReader]
+           [java.nio.charset StandardCharsets]
            [java.security MessageDigest] [java.time ZonedDateTime]
            [java.time.format DateTimeFormatter] [java.util.concurrent TimeUnit]))
 (def engine-root (fs/file (-> *file* fs/canonicalize fs/parent fs/parent)))
-(def repo-root (fs/file (fs/parent engine-root)))
+(def repo-root
+  (fs/file (or (System/getenv "POLYA_FORGE_REPO_ROOT")
+               (fs/parent engine-root))))
 (def problems-root (fs/file repo-root "problems"))
 (def forge-root (fs/file repo-root ".forge"))
 (def runs-root (fs/file forge-root "runs"))
@@ -45,9 +52,7 @@
 (defn sha256-text [x] (sha256-bytes (.getBytes (str x) StandardCharsets/UTF_8)))
 (defn tree-hashes [root] (into (sorted-map) (for [f (files root)] [(relative root f) (sha256-file f)])))
 (defn content-hash [hashes] (sha256-text (str/join "\n" (map (fn [[p h]] (str p " " h)) hashes))))
-(defn engine-hash []
-  (content-hash (assoc (tree-hashes engine-root) "../AGENTS.md"
-                       (sha256-file (child repo-root "AGENTS.md")))))
+(defn engine-hash [] (content-hash (tree-hashes engine-root)))
 (defn now [] (str (ZonedDateTime/now)))
 (defn run-stamp [] (.format (ZonedDateTime/now) (DateTimeFormatter/ofPattern "yyyyMMdd'T'HHmmssZ")))
 (defn slug [x]
@@ -105,20 +110,39 @@
   (ensure-dir (fs/parent target))
   (fs/copy (require-file source) target {:replace-existing true})
   target)
+(defn copy-tree [source target]
+  (when (fs/exists? target) (fs/delete-tree target))
+  (doseq [file (files source)]
+    (copy-file file (child target (relative source file))))
+  target)
+(defn local-memory-file [problem-id]
+  (child forge-root "memory" problem-id "INDEX.edn"))
+(defn local-memory [problem-id]
+  (let [file (local-memory-file problem-id)]
+    (if (fs/regular-file? file)
+      (read-edn file)
+      {:format-version 1 :problem-id problem-id :runs []})))
 (defn create-input [problem goal run]
-  (let [root (ensure-dir (child run "input"))]
+  (let [root (ensure-dir (child run "input"))
+        problem-id (get-in problem [:manifest :id])]
     (copy-file (child (:dir problem) "problem.edn") (child root "problem.edn"))
     (copy-file (:file goal) (child root "goal.edn"))
     (write-text (child root "rules.md") (str (slurp (child repo-root "AGENTS.md")) "\n\n"
                                              (slurp (child (:dir problem) "AGENTS.md"))))
     (doseq [[source target] pack-files] (copy-file (child (:dir problem) source)
                                                    (child root target)))
+    (write-edn (child root "local-memory.edn") (local-memory problem-id))
     root))
 (defn snapshot-text [ctx name] (slurp (child (:input ctx) (str name ".md"))))
 (defn snapshot [ctx]
   (str "# Rules\n\n" (snapshot-text ctx "rules") "\n# Target\n\n" (snapshot-text ctx "target")
        "\n# Memory\n\n" (snapshot-text ctx "memory") "\n# Catalog\n\n" (snapshot-text ctx "catalog")
-       "\n# Retired routes\n\n" (snapshot-text ctx "retired") "\n# Goal\n\n" (pr-str (:goal ctx))))
+       "\n# Retired routes\n\n" (snapshot-text ctx "retired")
+       "\n# Local cross-run memory\n\n" (pr-str (read-edn (child (:input ctx) "local-memory.edn")))
+       "\n# Goal\n\n" (pr-str (:goal ctx))))
+(defn memory-context [ctx]
+  (str (snapshot-text ctx "memory") "\n\n"
+       (pr-str (read-edn (child (:input ctx) "local-memory.edn")))))
 (defn render [text values] (reduce-kv #(str/replace %1 (str "{{" (name %2) "}}") (str %3))
                                       text values))
 (defn pretty [value] (json/generate-string value {:pretty true}))
@@ -127,7 +151,7 @@
   (sort-by fs/file-name (filter fs/directory?
                                 (fs/list-dir (ensure-dir (child (:run ctx) "calls"))))))
 (defn request-of [dir] (let [f (child dir "request.edn")] (when (fs/regular-file? f) (read-edn f))))
-(declare validate-artifacts validate-verifier validate-plan assert-run)
+(declare validate-artifacts validate-verifier validate-plan assert-run thread-id)
 (defn mark-error [dir error]
   (write-edn (child dir "error.edn") {:failed_at (now) :message (.getMessage error)
                                       :data (ex-data error)}))
@@ -151,9 +175,18 @@
 (defn remaining-calls [ctx] (- (get-in ctx [:budget :invocations]) @(:calls ctx)))
 (defn remaining-ms [ctx] (max 0 (- (long (:deadline (:manifest ctx)))
                                    (System/currentTimeMillis))))
+(def terminal-roles #{:remember :reflect})
+(defn terminal-reserve-ms [ctx]
+  (* 60000
+     (min (long (get config :terminal-reserve-minutes 30))
+          (max 1 (quot (long (get-in ctx [:budget :wall-minutes])) 4)))))
+(defn call-ms [ctx role]
+  (if (terminal-roles role)
+    (remaining-ms ctx)
+    (max 0 (- (remaining-ms ctx) (terminal-reserve-ms ctx)))))
 (defn reserve-call [ctx role task metadata]
   (locking (:calls ctx)
-    (guard (pos? (remaining-ms ctx)) "Run wall-clock budget exhausted" {:stop :wall-time})
+    (guard (pos? (call-ms ctx role)) "Run wall-clock budget exhausted" {:stop :wall-time})
     (let [n (inc @(:calls ctx))
           limit (- (get-in ctx [:budget :invocations])
                    (if (#{:plan :build :verify} role) 2 0))]
@@ -175,18 +208,21 @@
           artifacts)))
 (defn invoke
   ([ctx role task prompt] (invoke ctx role task prompt {}))
-  ([ctx role task prompt {:keys [request validate]}]
+  ([ctx role task prompt {:keys [request validate prepare]}]
    (let [check #(when validate (validate %))]
      (assert-run ctx)
      (or (complete-call ctx task check)
          (let [dir (reserve-call ctx role task request)
+               _ (when prepare (prepare dir))
+               prompt (if (fn? prompt) (prompt dir) prompt)
                _ (write-text (child dir "prompt.md") prompt)
                result (child dir "result.json") pending (child dir "pending-result.json")
                events (child dir "events.jsonl")]
            (try
              (if-let [fake (:fake ctx)]
                (do (write-text events "") (write-json pending (fake role task prompt dir)))
-               (let [command [(get config :codex) "exec" "--json" "--skip-git-repo-check"
+               (let [command [(get config :codex) "exec" "--json" "--ephemeral"
+                              "--ignore-user-config" "--skip-git-repo-check"
                               "-C" (path dir) "--sandbox" "workspace-write"
                               "-m" (:model config)
                               "-c" (str "model_reasoning_effort=\"" (:effort config) "\"")
@@ -196,17 +232,28 @@
                      handle (process/process command {:dir dir :in prompt :out events
                                                       :err (child dir "stderr.log")})]
                  (try
-                   (guard (.waitFor ^Process (:proc handle) (remaining-ms ctx)
+                   (guard (.waitFor ^Process (:proc handle) (call-ms ctx role)
                                     TimeUnit/MILLISECONDS)
                           "Run wall-clock budget exhausted" {:stop :wall-time :task task})
                    (guard (zero? (:exit @handle)) "Model call failed"
                           {:task task :exit (:exit @handle)})
                    (finally (try (process/destroy-tree handle) (catch Exception _ nil))))))
+             (when-let [id (thread-id dir)]
+               (write-edn (child dir "thread.edn") {:conversation-id id}))
              (let [call (checked-call dir (request-of dir) (read-json pending) check)]
                (assert-run ctx)
                (atomic-move pending result)
                call)
              (catch Exception error (mark-error dir error) (throw error))))))))
+(defn thread-id [dir]
+  (let [events (child dir "events.jsonl")]
+    (when (fs/regular-file? events)
+      (with-open [reader (BufferedReader. (FileReader. (str events)))]
+        (some #(try
+                 (let [event (json/parse-string % true)]
+                   (or (:thread_id event) (:thread-id event)))
+                 (catch Exception _ nil))
+              (take 32 (line-seq reader)))))))
 (defn packet-id [packet] (sha256-text (pr-str (dissoc packet :id))))
 (defn packet-index [packets]
   (mapv (fn [packet]
@@ -250,13 +297,20 @@
                      "Packet has missing or forward parents"))
             (recur (rest groups) (into prior (map :id current)) (inc wave)))
         packets))))
-(defn validate-plan [plan wave limit prior]
+(defn validate-plan [goal plan wave limit prior]
   (let [briefs (:briefs plan) prior-ids (set (map :id prior))]
     (guard (and (vector? briefs) (<= (count briefs) limit))
            "Planner exceeded its brief limit")
     (guard (= (count briefs) (count (distinct (map :id briefs))))
            "Planner emitted duplicate brief IDs")
     (doseq [brief briefs]
+      ;; Fan-out may change strategy, never the frozen endpoint objective.
+      (guard (= (:objective goal) (:objective brief))
+             "Brief changed the frozen objective" {:brief (:id brief)})
+      (guard (= (:endpoint-edge goal) (:endpoint_edge brief))
+             "Brief changed the frozen endpoint edge" {:brief (:id brief)})
+      (guard (= (:first-open-line goal) (:first_open_line brief))
+             "Brief changed the frozen first open line" {:brief (:id brief)})
       (let [parents (set (:parent_packet_ids brief))]
         (guard (not (if (= wave 1) (seq parents)
                         (or (empty? parents) (not-every? prior-ids parents))))
@@ -268,7 +322,7 @@
                                 :PACKET_INDEX (pretty (packet-index prior))})]
     (invoke ctx :plan task text
             {:request {:brief-limit limit}
-             :validate #(validate-plan (:data %) wave limit prior)})))
+             :validate #(validate-plan (:goal ctx) (:data %) wave limit prior)})))
 (defn validate-verifier [value]
   (guard (= (= "PASS" (:verdict value)) (nil? (:failure value)))
          "Verifier verdict and failure record disagree")
@@ -301,6 +355,7 @@
         build (invoke ctx :build (str prefix "-BUILD")
                       (prompt ctx :build
                               {:TARGET (snapshot-text ctx "target") :GOAL (pr-str (:goal ctx))
+                               :MEMORY (memory-context ctx)
                                :BRIEF (pretty frozen)}))
         packet (assoc frozen :build (:data build)
                       :build_artifacts
@@ -309,6 +364,7 @@
         verify (invoke ctx :verify (str prefix "-VERIFY")
                        (prompt ctx :verify
                                {:TARGET (snapshot-text ctx "target") :GOAL (pr-str (:goal ctx))
+                                :MEMORY (memory-context ctx)
                                 :PACKET (pretty packet)}))]
     (freeze-packet ctx wave brief plan build verify)))
 (defn execute-wave [ctx wave briefs plan prior]
@@ -322,25 +378,61 @@
       (throw (or (some #(when (:stop (ex-data %)) %) errors) (first errors))))
     results))
 (defn call-record [dir]
-  (let [request (request-of dir) error (child dir "error.edn")]
+  (let [request (request-of dir) error (child dir "error.edn")
+        conversation (thread-id dir)]
     (cond-> (assoc request :outcome (cond (fs/regular-file? error) :failed
                                           (fs/regular-file? (child dir "result.json")) :completed
                                           :else :interrupted))
+      conversation (assoc :conversation-id conversation)
       (fs/regular-file? error) (assoc :error (read-edn error)))))
 (defn validate-memory [packets value]
   (let [passed (set (for [p packets :when (= "PASS" (get-in p [:verify :verdict]))]
                       (:id p)))]
     (doseq [change (:changes value)]
+      (guard (#{"advance-frontier" "remove-assumption" "retire-route"
+                "preserve-salvage"}
+              (:kind change))
+             "Unknown memory change kind" {:kind (:kind change)})
       (guard (and (seq (:packet_ids change)) (every? passed (:packet_ids change)))
              "Memory change lacks PASS packet support"))
     value))
+(defn evolution-history []
+  (let [root (child forge-root "activations")]
+    {:key-learnings (slurp (require-file (child engine-root "memory" "KEY_LEARNINGS.md")))
+     :recent-decisions
+     (mapv read-edn
+           (take-last 8
+                      (sort-by fs/file-name
+                               (if (fs/directory? root)
+                                 (filter fs/regular-file? (fs/list-dir root))
+                                 []))))}))
+(defn candidate-root [dir] (child dir "candidate" "engine"))
+(defn prepare-candidate [dir] (copy-tree engine-root (candidate-root dir)))
+(defn publish-local-memory [ctx memory]
+  (when memory
+    (let [problem-id (:problem-id (:manifest ctx))
+          file (local-memory-file problem-id)
+          before (local-memory problem-id)
+          run-id (:run-id (:manifest ctx))
+          record {:run-id run-id :at (now)
+                  :evidence-root (str "runs/" run-id)
+                  :version (get-in ctx [:manifest :version])
+                  :changes (get-in memory [:data :changes])}
+          runs (:runs before)
+          after (if (some #(= run-id (:run-id %)) runs)
+                  before
+                  (assoc before :runs (vec (take-last 32 (conj (vec runs) record)))))]
+      (write-edn file after)
+      file)))
 (defn write-close [ctx stop memory reflection]
   (let [file (child (:run ctx) "close.edn")
         result #(when % {:call (get-in % [:request :call]) :result (:data %)})
         value (cond-> {:stop stop :ended_at (now)}
                 memory (assoc :memory (result memory))
                 reflection (assoc :reflection (result reflection)))]
-    (if (fs/regular-file? file) (read-edn file) (do (write-edn file value) value))))
+    (if (fs/regular-file? file)
+      (read-edn file)
+      (do (publish-local-memory ctx memory) (write-edn file value) value))))
 (defn close-run [ctx packets stop]
   (let [close-file (child (:run ctx) "close.edn")]
     (if (fs/regular-file? close-file)
@@ -356,19 +448,33 @@
                            (invoke ctx :remember "MEMORY"
                                    (prompt ctx :remember
                                            {:GOAL (pr-str (:goal ctx))
+                                            :MEMORY (memory-context ctx)
                                             :PACKETS (pretty (mapv #(packet-view ctx %) packets))})
                                    {:validate #(validate-memory packets (:data %))}))
                 record {:run (:manifest ctx) :stop stop :packets (packet-index packets)
                         :calls (mapv call-record (call-dirs ctx))}
                 reflection (or reflection0
                                (invoke ctx :reflect "REFLECT"
-                                       (prompt ctx :reflect
-                                               {:RUN_RECORD (pretty record)
-                                                :MEMORY (pretty (:data memory))})))]
+                                       (fn [dir]
+                                         (prompt
+                                          ctx :reflect
+                                          {:RUN_RECORD (pretty record)
+                                           :GOAL (pr-str (:goal ctx))
+                                           :MEMORY
+                                           (str (memory-context ctx)
+                                                "\n\n# Proposed changes\n"
+                                                (pretty (:data memory)))
+                                           :EVOLUTION_HISTORY
+                                           (pretty (evolution-history))
+                                           :CANDIDATE_DIR
+                                           (path (candidate-root dir))}))
+                                       {:prepare prepare-candidate}))]
             (write-close ctx stop memory reflection)))))))
 (defn assert-run [ctx]
-  (guard (= (:engine_hash (:manifest ctx)) (engine-hash))
-         "Engine changed; check out the recorded Git revision to resume")
+  (guard (= (or (:version-sha256 (:manifest ctx))
+                (:engine_hash (:manifest ctx)))
+            (engine-hash))
+         "Pinned harness version changed")
   (guard (= (:input_hashes (:manifest ctx)) (tree-hashes (:input ctx)))
          "Frozen run input changed")
   true)
@@ -385,7 +491,7 @@
       (let [task (format "W%03d-PLAN" wave)
             plan (complete-call
                   ctx task
-                  #(validate-plan (:data %) wave
+                  #(validate-plan (:goal ctx) (:data %) wave
                                   (get-in % [:request :brief-limit]) prior))
             current (vec (get by-wave wave []))]
         (if-not plan
@@ -410,14 +516,12 @@
   (assert-run ctx)
   (if (fs/regular-file? (child (:run ctx) "close.edn"))
     (read-edn (child (:run ctx) "close.edn"))
-    (letfn [(finish [packets stop]
-              (if (seq packets) (close-run ctx packets stop)
-                  (write-close ctx stop nil nil)))]
+    (letfn [(finish [packets stop] (close-run ctx packets stop))]
       (try
         (loop []
           (let [{:keys [wave prior packets plan missing]} (run-state ctx)]
             (cond
-              (zero? (remaining-ms ctx)) (finish packets :wall-time)
+              (zero? (call-ms ctx :plan)) (finish packets :wall-time)
               (and (nil? plan) (<= (remaining-calls ctx) 2))
               (finish packets :invocation-budget)
               :else
@@ -438,14 +542,26 @@
 (defn start-run [problem-id goal-path overrides]
   (validate-engine)
   (let [problem (find-problem problem-id) goal (validate-goal problem goal-path)
-        id (str (run-stamp) "_" (format "%06d" (mod (System/nanoTime) 1000000))
-                "_" problem-id "_" (slug (get-in goal [:data :id])))
+        id (or (System/getenv "POLYA_FORGE_RUN_ID")
+               (str (run-stamp) "_" (format "%06d" (mod (System/nanoTime) 1000000))
+                    "_" problem-id "_" (slug (get-in goal [:data :id]))))
+        _ (guard (re-matches #"[A-Za-z0-9][A-Za-z0-9_.+-]*" id)
+                 "Launcher supplied an invalid run ID")
         run (ensure-dir (child runs-root id)) input (create-input problem goal run)
         manifest {:format-version 1 :run-id id :problem-id problem-id
                   :started-at (now)
                   :deadline (+ (System/currentTimeMillis)
                                (* 60000 (get-in goal [:data :budget :wall-minutes])))
-                  :engine_hash (engine-hash) :input_hashes (tree-hashes input)}]
+                  :version (or (System/getenv "POLYA_FORGE_VERSION") "source")
+                  :version-sha256
+                  (or (System/getenv "POLYA_FORGE_VERSION_SHA256")
+                      (engine-hash))
+                  :launcher-sha256
+                  (System/getenv "POLYA_FORGE_LAUNCHER_SHA256")
+                  :engine_hash (engine-hash)
+                  :input_hashes (tree-hashes input)}]
+    (guard (= (:version-sha256 manifest) (engine-hash))
+           "Launcher supplied the wrong harness version hash")
     (write-edn (child run "run.edn") manifest)
     (try
       (run-result id run overrides)
@@ -458,10 +574,3 @@
     (guard (fs/regular-file? (child run "run.edn")) "Unknown or legacy run" {:run id})
     run))
 (defn resume-run [id overrides] (let [run (find-run id)] (run-result id run overrides)))
-(defn with-lock [f]
-  (ensure-dir forge-root)
-  (with-open [raf (RandomAccessFile. (str (child forge-root "run.lock")) "rw")
-              channel (.getChannel raf)]
-    (let [lock (try (.tryLock channel) (catch Exception _ nil))]
-      (guard lock "Another Forge command holds the run lock")
-      (f))))

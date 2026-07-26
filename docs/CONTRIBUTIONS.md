@@ -5,7 +5,8 @@
 ## Research bundle
 
 Contains the frozen goal and problem inputs, immutable branch packets, their
-text artifacts, and the terminal problem-memory proposal.
+text evidence, and the terminal fallback-memory proposal. Export preserves
+salvage; it does not turn salvage into claimed endpoint progress.
 
 It must let a reviewer identify:
 

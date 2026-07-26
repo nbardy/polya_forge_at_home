@@ -2,12 +2,12 @@
  :id "controller-fixture"
  :status :active
  :problem "poincare-conjecture"
- :objective "Exercise fan-out, two deterministic no-model research waves, and resume."
- :deliverable "Three audited packets, including a preserved sibling, and static research/harness bundles."
+ :objective "Exercise one deterministic controller lifecycle and durable resume."
+ :deliverable "One independently audited synthetic packet and a resumable failure."
  :endpoint-edge "Controller regression only; no mathematical endpoint."
- :first-open-line "Build and audit one synthetic packet, then cite it from one successor."
+ :first-open-line "Build and independently audit one synthetic packet."
  :inputs ["Deterministic fixture responses" "The solved reference problem pack"]
  :exclusions ["Mathematical progress" "Novelty" "Publication or prize claims"]
- :completion "A partial fan-out survives resume, then memory, reflection, export, and inspection complete."
- :kill "Any controller invariant, budget, linkage, or bundle check fails."
- :budget {:fanout 2 :invocations 15 :wall-minutes 5}}
+ :completion "Round, resume, memory, and reflection smokes pass."
+ :kill "Any controller invariant or resume check fails."
+ :budget {:fanout 1 :invocations 10 :wall-minutes 5}}

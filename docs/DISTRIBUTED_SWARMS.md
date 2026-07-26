@@ -30,5 +30,7 @@ bundles are the first asynchronous coordination layer. Hosted queues, signing,
 identity, abuse controls, and cross-machine scheduling belong after the packet
 contract survives real research and independent review.
 
-Success is measured by independently verified frontier changes per unit of
-compute and reviewer attention—not users, tokens, branches, or model agreement.
+Success is measured by independently verified closure, refutation, or
+hypothesis removal on the frozen first missing endpoint implication per unit of
+compute and reviewer attention—not users, tokens, branches, reusable artifacts,
+memory volume, or model agreement.
