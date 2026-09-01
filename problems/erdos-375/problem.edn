@@ -1,0 +1,8 @@
+{:format-version 1
+ :id "erdos-375"
+ :title "Erdős Problem 375 (Grimm's conjecture)"
+ :status :open
+ :official-source "https://www.erdosproblems.com/375"
+ :admission {:mechanisms #{:primary-source-fidelity-review
+                           :independent-exact-recomputation
+                           :external-human-review}}}

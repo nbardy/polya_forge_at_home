@@ -1,0 +1,6 @@
+{:format-version 1
+ :id "harness-fixture"
+ :title "Generic harness fixture"
+ :status :fixture
+ :official-source "local deterministic test data"
+ :admission {:mechanisms #{:deterministic-regression}}}

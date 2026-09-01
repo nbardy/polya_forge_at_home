@@ -23,7 +23,7 @@ A future coordinator needs only:
 - expiring work leases;
 - audit-capacity backpressure;
 - an append-only merge history;
-- problem-local harness branches benchmarked before activation.
+- problem-local harness branches benchmarked before promotion.
 
 It does not need a generic controller inside the local alpha. Git and static
 bundles are the first asynchronous coordination layer. Hosted queues, signing,

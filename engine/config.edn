@@ -2,6 +2,7 @@
  :effort "high"
  :codex "codex"
  :terminal-reserve-minutes 30
+ :max-call-minutes 90
  :caps {:fanout 3
         :invocations 96
         :wall-minutes 720}}

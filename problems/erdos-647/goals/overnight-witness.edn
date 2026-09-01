@@ -1,0 +1,18 @@
+{:format-version 1
+ :id "overnight-witness"
+ :status :active
+ :problem "erdos-647"
+ :objective "Find and independently verify an integer n>24 such that max_{1<=m<n}(m+tau(m))<=n+2."
+ :deliverable "An exact witness n, a lossless full-range divisor-count certificate, the attained maximum and equality cases, and an independent exact recomputation."
+ :endpoint-edge "The existential statement is resolved affirmatively by one unconditional exact witness n>24 satisfying the inequality for every m<n."
+ :first-open-line "There exists an integer n>24 for which tau(m)<=n+2-m for every integer 1<=m<n."
+ :inputs ["The exact statement and source boundary frozen in this problem pack"
+          "Exact integer arithmetic, factorization, sieving, and executable computations inside the assigned attempt directory"
+          "Audited parent packets from this same goal, when present"]
+ :exclusions ["Conditional results, including consequences of Schinzel's Hypothesis H"
+              "Checks restricted to a short interval below n"
+              "Finite witness-free searches presented as resolution"
+              "Unverified imported theorems, model consensus, novelty claims, or prize claims"]
+ :completion "A verifier that did not build the candidate exactly recomputes tau(m) for every 1<=m<n, confirms the inequality and maximum, and returns PASS with no unresolved mathematical assumption."
+ :kill "Stop each round when its finite invocation or 12-hour wall-time budget is exhausted, the planner emits no direct endpoint attack, or every proposed witness is independently refuted; preserve all failed candidates and bounded negative evidence."
+ :budget {:fanout 3 :invocations 96 :wall-minutes 720}}

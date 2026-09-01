@@ -33,6 +33,8 @@ one content hash over its complete file tree. `bb inspect` rejects:
 
 Inspection never executes bundle content.
 
-`PASS` means an internal verifier call passed. A claim becomes admitted only
-through the external mechanism declared by its problem pack. Repository merge
-does not satisfy any prize body's rules.
+`PASS` means an internal verifier call passed. An endpoint `CANDIDATE` means
+the controller paused with admission pending; publish or review it as a frozen
+candidate, never as a solved claim. A claim becomes admitted only through the
+external mechanism declared by its problem pack. Repository merge does not
+satisfy any prize body's rules.

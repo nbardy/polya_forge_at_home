@@ -1,0 +1,18 @@
+{:format-version 1
+ :id "overnight-counterexample"
+ :status :active
+ :problem "erdos-617"
+ :objective "Find and independently verify a 5-coloring of the edges of K_26 such that every induced K_6 contains all five colors."
+ :deliverable "A canonical complete edge-color certificate, a full enumeration check over all 230230 six-vertex subsets, and an independent checker implementation."
+ :endpoint-edge "The r=5 instance, and therefore the universal conjecture, is disproved by one exact coloring satisfying every induced-subgraph constraint."
+ :first-open-line "There exists a map from the 325 edges of K_26 to five colors such that each six-vertex subset induces edges of all five colors."
+ :inputs ["The exact statement and r=3,4 known boundary frozen in this problem pack"
+          "SAT/CP/SMT, exact combinatorial search, and executable computations inside the assigned attempt directory"
+          "Audited parent packets from this same goal, when present"]
+ :exclusions ["Changing K_26, the five-color palette, or the requirement on every induced K_6"
+              "Unsatisfiability or timeout of one encoding presented as proof"
+              "Candidate colorings checked on only a sample of subsets"
+              "Unverified imported theorems, model consensus, novelty claims, or prize claims"]
+ :completion "A verifier that did not build the coloring parses all 325 edge colors and exhaustively confirms all five colors on every one of the 230230 induced K_6 subgraphs."
+ :kill "Stop each round when its finite invocation or 12-hour wall-time budget is exhausted, the planner emits no direct endpoint attack, or every proposed coloring is independently refuted; preserve all failed candidates and bounded negative evidence."
+ :budget {:fanout 3 :invocations 96 :wall-minutes 720}}

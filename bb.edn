@@ -8,13 +8,26 @@
           :task (apply shell "bb" "forge.clj" "resume" *command-line-args*)}
   campaign {:doc "Run 1..100 sequential rounds"
             :task (apply shell "bb" "forge.clj" "campaign" *command-line-args*)}
+  benchmark {:doc "Compare the champion and open challenger on blinded endpoints"
+             :task (apply shell "bb" "forge.clj" "benchmark" *command-line-args*)}
   campaign-resume {:doc "Resume an interrupted campaign"
                    :task (apply shell "bb" "forge.clj" "campaign-resume"
                                 *command-line-args*)}
-  adopt {:doc "Test and activate the checked-in engine source"
+  adopt {:doc "Compatibility-check and activate the checked-in engine source"
          :task (apply shell "bb" "forge.clj" "adopt" *command-line-args*)}
   export {:doc "Export separate research and harness bundles"
           :task (apply shell "bb" "forge.clj" "export" *command-line-args*)}
+  publish {:doc "Publish a sanitized research run under runs/<problem>/<uuid>"
+           :task (apply shell "bb" "forge.clj" "publish" *command-line-args*)}
+  solver-install {:doc "Install the pinned repo-local mathematical solver environment"
+                  :task (shell "tools/solver/toolchain" "install")}
+  solver-check {:doc "Check the pinned solver environment and run smoke certificates"
+                :task (shell "tools/solver/toolchain" "check")}
+  solver-path {:doc "Print the pinned solver environment bin directory"
+               :task (shell "tools/solver/toolchain" "path")}
+  solver-exec {:doc "Run a command with the pinned solver environment on PATH"
+               :task (apply shell "tools/solver/toolchain" "exec"
+                            *command-line-args*)}
   inspect {:doc "Statically inspect a bundle"
            :task (apply shell "bb" "forge.clj" "inspect" *command-line-args*)}
   test {:doc "Run deterministic no-model tests"

@@ -1,12 +1,12 @@
 {:format-version 1
- :id "controller-fixture"
+ :id "controller"
  :status :active
- :problem "poincare-conjecture"
+ :problem "harness-fixture"
  :objective "Exercise one deterministic controller lifecycle and durable resume."
  :deliverable "One independently audited synthetic packet and a resumable failure."
  :endpoint-edge "Controller regression only; no mathematical endpoint."
  :first-open-line "Build and independently audit one synthetic packet."
- :inputs ["Deterministic fixture responses" "The solved reference problem pack"]
+ :inputs ["Deterministic fixture responses" "The generic fixture pack"]
  :exclusions ["Mathematical progress" "Novelty" "Publication or prize claims"]
  :completion "Round, resume, memory, and reflection smokes pass."
  :kill "Any controller invariant or resume check fails."

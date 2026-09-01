@@ -1,0 +1,7 @@
+{:format-version 1
+ :id "blinded-endpoint-benchmark"
+ :title "Blinded finite endpoint benchmark"
+ :status :fixture
+ :official-source "local deterministic SHA-256 preimage fixture"
+ :admission {:mechanisms #{:deterministic-regression
+                           :independent-exact-recomputation}}}

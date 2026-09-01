@@ -1,0 +1,18 @@
+{:format-version 1
+ :id "solve-factorial-gap"
+ :problem "benchmark-factorial-gap"
+ :status :active
+ :objective "Prove the full balanced factorial-divisibility logarithmic-window theorem for every fixed 0<C1<C2 and 0<epsilon<1/2, with infinitely many triples."
+ :deliverable "A complete self-contained proof checking the balance bounds, exact factorial divisibility, both strict logarithmic-window inequalities, all uniform quantifiers, and infinitude."
+ :endpoint-edge "The theorem is closed only when the same proof handles every fixed 0<C1<C2 and 0<epsilon<1/2, both balance bounds, all primes, both strict window bounds, and infinitely many triples."
+ :first-open-line "Build and verify a complete uniform proof of the stated factorial-divisibility logarithmic-gap theorem."
+ :inputs ["The frozen factorial-divisibility theorem"
+          "Standard mathematical results only when stated with exact hypotheses and independently source-checked"
+          "Exact symbolic, computational, or formal tools used only to discover and check a complete proof"]
+ :exclusions ["Historical-source or catalog lookup during BUILD"
+              "Assuming an unproved probabilistic independence or asymptotic estimate"
+              "A construction for only one constant window or without the balance bounds"
+              "Finite numerical evidence or novelty claims"]
+ :completion "A fresh verifier reconstructs the reductions and every uniform estimate, then the resulting proof is eligible for hidden historical and Lean audits; external admission remains pending."
+ :kill "Stop when the finite invocation or 12-hour wall-time budget is exhausted or no falsifiable direct proof repair remains; preserve the exact first invalid uniform estimate."
+ :budget {:fanout 1 :invocations 96 :wall-minutes 720}}

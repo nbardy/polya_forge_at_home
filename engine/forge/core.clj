@@ -4,11 +4,16 @@
    frozen packets make parallel work resumable; terminal memory prevents repeats;
    reflection changes only the next version, never its own evidence."
   (:require [babashka.fs :as fs] [babashka.process :as process]
-            [cheshire.core :as json] [clojure.edn :as edn] [clojure.string :as str])
-  (:import [java.io BufferedReader FileReader]
+            [cheshire.core :as json] [clojure.edn :as edn]
+            [clojure.java.io :as io] [clojure.set :as set]
+            [clojure.string :as str])
+  (:import [java.io BufferedReader FileReader PushbackReader]
+           [java.net UnixDomainSocketAddress]
+           [java.nio.channels Channels SocketChannel]
            [java.nio.charset StandardCharsets]
            [java.security MessageDigest] [java.time ZonedDateTime]
-           [java.time.format DateTimeFormatter] [java.util.concurrent TimeUnit]))
+           [java.time.format DateTimeFormatter] [java.util UUID]
+           [java.util.concurrent TimeUnit]))
 (def engine-root (fs/file (-> *file* fs/canonicalize fs/parent fs/parent)))
 (def repo-root
   (fs/file (or (System/getenv "POLYA_FORGE_REPO_ROOT")
@@ -43,7 +48,12 @@
     file))
 (defn files [root] (filter fs/regular-file? (fs/glob root "**" {:hidden true})))
 (defn text-file? [file]
-  (boolean (re-find #"\.(md|txt|edn|jsonl?|clj[cs]?|bb|py|lean|csv|tsv|tex|bib|ya?ml|toml|log)$" (str/lower-case (str (fs/file-name file))))))
+  (try
+    (let [bytes (fs/read-all-bytes file)
+          text (String. bytes StandardCharsets/UTF_8)]
+      (and (java.util.Arrays/equals bytes (.getBytes text StandardCharsets/UTF_8))
+           (every? #(or (#{9 10 12 13} (int %)) (>= (int %) 32)) text)))
+    (catch Exception _ false)))
 (defn relative [root file] (fs/unixify (fs/relativize (canonical root) (canonical file))))
 (defn sha256-bytes [^bytes value]
   (apply str (map #(format "%02x" (bit-and % 0xff))
@@ -78,9 +88,14 @@
 (defn find-problem [id]
   (guard (re-matches #"[a-z0-9]+(?:-[a-z0-9]+)*" id) "Invalid problem ID" {:problem id})
   (validate-problem (child problems-root id)))
-(defn validate-goal [problem goal-path]
-  (let [file (canonical goal-path) root (canonical (child (:dir problem) "goals"))
-        goal (read-edn file) budget (:budget goal) caps (:caps config)]
+(defn resolve-goal [goal-path]
+  (let [file (canonical goal-path) bytes (fs/read-all-bytes (require-file file))]
+    {:file file :bytes bytes :sha256 (sha256-bytes bytes)
+     :data (edn/read-string (String. bytes StandardCharsets/UTF_8))}))
+(defn validate-goal [problem goal-record]
+  (let [file (:file goal-record) goal (:data goal-record)
+        root (canonical (child (:dir problem) "goals"))
+        budget (:budget goal) caps (:caps config)]
     (guard (inside? root file) "Goal must live in its problem pack" {:goal (path file)})
     (guard (and (= 1 (:format-version goal)) (= :active (:status goal))
                 (= (get-in problem [:manifest :id]) (:problem goal)))
@@ -94,8 +109,11 @@
       (guard (and (pos-int? (get budget k)) (<= (get budget k) (get caps k)))
              "Goal budget exceeds engine cap" {:budget k :value (get budget k)}))
     (guard (>= (:invocations budget) 5) "Goal cannot fund plan, build, verify, memory, and reflection")
-    {:file file :data goal}))
+    goal-record))
 (defn validate-engine []
+  (guard (and (pos-int? (:max-call-minutes config))
+              (<= (:max-call-minutes config) (get-in config [:caps :wall-minutes])))
+         "Invalid per-call time cap")
   (doseq [role [:plan :build :verify :remember :reflect]]
     (guard (not (str/blank? (slurp (require-file (role-file engine-root "prompts" role ".md")))))
            "Blank prompt" {:role role})
@@ -110,6 +128,8 @@
   (ensure-dir (fs/parent target))
   (fs/copy (require-file source) target {:replace-existing true})
   target)
+(defn write-bytes [target bytes]
+  (ensure-dir (fs/parent target)) (fs/write-bytes target bytes) target)
 (defn copy-tree [source target]
   (when (fs/exists? target) (fs/delete-tree target))
   (doseq [file (files source)]
@@ -126,7 +146,7 @@
   (let [root (ensure-dir (child run "input"))
         problem-id (get-in problem [:manifest :id])]
     (copy-file (child (:dir problem) "problem.edn") (child root "problem.edn"))
-    (copy-file (:file goal) (child root "goal.edn"))
+    (write-bytes (child root "goal.edn") (:bytes goal))
     (write-text (child root "rules.md") (str (slurp (child repo-root "AGENTS.md")) "\n\n"
                                              (slurp (child (:dir problem) "AGENTS.md"))))
     (doseq [[source target] pack-files] (copy-file (child (:dir problem) source)
@@ -151,7 +171,8 @@
   (sort-by fs/file-name (filter fs/directory?
                                 (fs/list-dir (ensure-dir (child (:run ctx) "calls"))))))
 (defn request-of [dir] (let [f (child dir "request.edn")] (when (fs/regular-file? f) (read-edn f))))
-(declare validate-artifacts validate-verifier validate-plan assert-run thread-id)
+(declare validate-artifacts validate-verifier validate-plan assert-run thread-id
+         broker-invoke)
 (defn mark-error [dir error]
   (write-edn (child dir "error.edn") {:failed_at (now) :message (.getMessage error)
                                       :data (ex-data error)}))
@@ -181,9 +202,10 @@
      (min (long (get config :terminal-reserve-minutes 30))
           (max 1 (quot (long (get-in ctx [:budget :wall-minutes])) 4)))))
 (defn call-ms [ctx role]
-  (if (terminal-roles role)
-    (remaining-ms ctx)
-    (max 0 (- (remaining-ms ctx) (terminal-reserve-ms ctx)))))
+  (min (* 60000 (long (:max-call-minutes config)))
+       (if (terminal-roles role)
+         (remaining-ms ctx)
+         (max 0 (- (remaining-ms ctx) (terminal-reserve-ms ctx))))))
 (defn reserve-call [ctx role task metadata]
   (locking (:calls ctx)
     (guard (pos? (call-ms ctx role)) "Run wall-clock budget exhausted" {:stop :wall-time})
@@ -202,7 +224,7 @@
     (guard (<= (count artifacts) 16) "Builder produced too many artifacts")
     (doseq [file (fs/glob root "**" {:hidden true})]
       (guard (not (fs/sym-link? file)) "Builder artifacts cannot contain symlinks"))
-    (mapv #(do (guard (and (text-file? %) (<= (fs/size %) (* 5 1024 1024)))
+    (mapv #(do (guard (and (<= (fs/size %) (* 5 1024 1024)) (text-file? %))
                        "Builder artifacts must be bounded auditable text" {:path (str %)})
                %)
           artifacts)))
@@ -221,30 +243,63 @@
            (try
              (if-let [fake (:fake ctx)]
                (do (write-text events "") (write-json pending (fake role task prompt dir)))
-               (let [command [(get config :codex) "exec" "--json" "--ephemeral"
-                              "--ignore-user-config" "--skip-git-repo-check"
-                              "-C" (path dir) "--sandbox" "workspace-write"
-                              "-m" (:model config)
-                              "-c" (str "model_reasoning_effort=\"" (:effort config) "\"")
-                              "-c" "approval_policy=\"never\""
-                              "--output-schema" (path (run-schema ctx role))
-                              "--output-last-message" (path pending) "-"]
-                     handle (process/process command {:dir dir :in prompt :out events
-                                                      :err (child dir "stderr.log")})]
-                 (try
-                   (guard (.waitFor ^Process (:proc handle) (call-ms ctx role)
-                                    TimeUnit/MILLISECONDS)
-                          "Run wall-clock budget exhausted" {:stop :wall-time :task task})
-                   (guard (zero? (:exit @handle)) "Model call failed"
-                          {:task task :exit (:exit @handle)})
-                   (finally (try (process/destroy-tree handle) (catch Exception _ nil))))))
+               (if-let [socket (System/getenv "POLYA_FORGE_MODEL_BROKER")]
+                 (let [exit (broker-invoke socket role dir (call-ms ctx role)
+                                           (:conversation-id (request-of dir)))]
+                   (guard (zero? exit) "Model call failed" {:task task :exit exit}))
+                 (let [_ (guard (nil? (:conversation-id (request-of dir)))
+                                "Persistent repair requires the fixed model broker")
+                       command [(get config :codex) "exec" "--json" "--ephemeral"
+                                "--ignore-user-config" "--ignore-rules"
+                                "--skip-git-repo-check"
+                                "-C" (path dir) "--sandbox" "workspace-write"
+                                "-m" (:model config)
+                                "-c" (str "model_reasoning_effort=\"" (:effort config) "\"")
+                                "-c" "approval_policy=\"never\""
+                                "--output-schema" (path (run-schema ctx role))
+                                "--output-last-message" (path pending) "-"]
+                       handle (process/process command {:dir dir :in prompt :out events
+                                                        :err (child dir "stderr.log")})]
+                   (try
+                     (guard (.waitFor ^Process (:proc handle) (call-ms ctx role)
+                                      TimeUnit/MILLISECONDS)
+                            "Run wall-clock budget exhausted" {:stop :wall-time :task task})
+                     (guard (zero? (:exit @handle)) "Model call failed"
+                            {:task task :exit (:exit @handle)})
+                     (finally
+                       (try (process/destroy-tree handle) (catch Exception _ nil)))))))
              (when-let [id (thread-id dir)]
                (write-edn (child dir "thread.edn") {:conversation-id id}))
              (let [call (checked-call dir (request-of dir) (read-json pending) check)]
                (assert-run ctx)
                (atomic-move pending result)
                call)
-             (catch Exception error (mark-error dir error) (throw error))))))))
+             (catch Exception error
+               (mark-error dir error)
+               (if (and (nil? (:stop (ex-data error)))
+                        (or (fs/regular-file? pending)
+                            (contains? (or (ex-data error) {}) :exit)))
+                 (throw (ex-info (.getMessage error)
+                                 (assoc (or (ex-data error) {})
+                                        :stop :branch-failure)
+                                 error))
+                 (throw error)))))))))
+(defn broker-invoke
+  ([socket role dir timeout-ms]
+   (broker-invoke socket role dir timeout-ms nil))
+  ([socket role dir timeout-ms conversation-id]
+  (with-open [channel (SocketChannel/open (UnixDomainSocketAddress/of socket))
+              reader (PushbackReader. (io/reader (Channels/newInputStream channel)))
+              writer (io/writer (Channels/newOutputStream channel))]
+    (binding [*out* writer]
+      (prn (cond-> {:op :invoke :dir (path dir) :role role
+                    :timeout-ms timeout-ms}
+             conversation-id (assoc :conversation-id conversation-id)))
+      (flush))
+    (let [reply (edn/read reader)]
+      (guard (map? reply) "Model broker returned a malformed response")
+      (guard (nil? (:error reply)) "Model broker rejected the call" reply)
+      (:exit reply)))))
 (defn thread-id [dir]
   (let [events (child dir "events.jsonl")]
     (when (fs/regular-file? events)
@@ -253,16 +308,23 @@
                  (let [event (json/parse-string % true)]
                    (or (:thread_id event) (:thread-id event)))
                  (catch Exception _ nil))
-              (take 32 (line-seq reader)))))))
+              (line-seq reader))))))
 (defn packet-id [packet] (sha256-text (pr-str (dissoc packet :id))))
 (defn packet-index [packets]
   (mapv (fn [packet]
           {:id (:id packet) :objective (get-in packet [:brief :objective])
            :verdict (get-in packet [:verify :verdict])
+           :endpoint_disposition (get-in packet [:verify :endpoint_disposition])
            :claim (get-in packet [:build :claim]) :claim_status (get-in packet [:verify :claim_status])
            :audit (get-in packet [:verify :audit])
+           :failure (get-in packet [:verify :failure])
            :first_open_line (get-in packet [:verify :first_open_or_invalid_line])})
         packets))
+(defn open-repairs [packets]
+  (let [used (set (mapcat #(get-in % [:brief :parent_packet_ids]) packets))]
+    (filterv #(and (= "REPAIR" (get-in % [:verify :verdict]))
+                   (not (used (:id %))))
+             packets)))
 (defn load-packet [root file]
   (let [packet (read-edn file)
         artifacts (:artifacts packet)
@@ -297,38 +359,83 @@
                      "Packet has missing or forward parents"))
             (recur (rest groups) (into prior (map :id current)) (inc wave)))
         packets))))
-(defn validate-plan [goal plan wave limit prior]
-  (let [briefs (:briefs plan) prior-ids (set (map :id prior))]
-    (guard (and (vector? briefs) (<= (count briefs) limit))
-           "Planner exceeded its brief limit")
-    (guard (= (count briefs) (count (distinct (map :id briefs))))
-           "Planner emitted duplicate brief IDs")
-    (doseq [brief briefs]
-      ;; Fan-out may change strategy, never the frozen endpoint objective.
-      (guard (= (:objective goal) (:objective brief))
-             "Brief changed the frozen objective" {:brief (:id brief)})
-      (guard (= (:endpoint-edge goal) (:endpoint_edge brief))
-             "Brief changed the frozen endpoint edge" {:brief (:id brief)})
-      (guard (= (:first-open-line goal) (:first_open_line brief))
-             "Brief changed the frozen first open line" {:brief (:id brief)})
-      (let [parents (set (:parent_packet_ids brief))]
-        (guard (not (if (= wave 1) (seq parents)
-                        (or (empty? parents) (not-every? prior-ids parents))))
-               "Brief has invalid parent packets" {:brief (:id brief)})))
-    plan))
+(defn pending-cross-run-repairs [ctx]
+  (let [record (last (:runs (read-edn (child (:input ctx) "local-memory.edn"))))
+        goal-sha256 (get-in ctx [:manifest :goal-sha256])]
+    (filterv #(= goal-sha256 (:goal-sha256 %)) (:pending-repairs record))))
+(defn brief-names-repair? [brief repair]
+  (boolean
+   (some #(str/includes? % (:packet-id repair)) (:inputs brief))))
+(defn validate-plan
+  ([goal plan wave limit prior]
+   (validate-plan goal plan wave limit prior []))
+  ([goal plan wave limit prior pending-repairs]
+   (let [briefs (:briefs plan) prior-ids (set (map :id prior))
+         repairs (open-repairs prior) repair-ids (set (map :id repairs))]
+     (guard (and (vector? briefs) (<= (count briefs) limit))
+            "Planner exceeded its brief limit")
+     (guard (= (count briefs) (count (distinct (map :id briefs))))
+            "Planner emitted duplicate brief IDs")
+     (doseq [brief briefs]
+       ;; Fan-out may change strategy, never the frozen endpoint objective.
+       (guard (= (:objective goal) (:objective brief))
+              "Brief changed the frozen objective" {:brief (:id brief)})
+       (guard (= (:endpoint-edge goal) (:endpoint_edge brief))
+              "Brief changed the frozen endpoint edge" {:brief (:id brief)})
+       (guard (= (:first-open-line goal) (:first_open_line brief))
+              "Brief changed the frozen first open line" {:brief (:id brief)})
+       (let [parents (set (:parent_packet_ids brief))]
+         (guard (not (if (= wave 1) (seq parents)
+                         (or (empty? parents) (not-every? prior-ids parents))))
+                "Brief has invalid parent packets" {:brief (:id brief)})))
+     (when (and (pos? limit) (seq repairs))
+       (guard (some #(seq (set/intersection repair-ids
+                                            (set (:parent_packet_ids %)))) briefs)
+              "Planner abandoned an open verifier repair"
+              {:repair-packets (vec repair-ids)}))
+     (when (and (= 1 wave) (pos? limit) (seq pending-repairs))
+       (guard (some (fn [brief]
+                      (some #(brief-names-repair? brief %) pending-repairs))
+                    briefs)
+                "Planner abandoned a terminal verifier repair from the preceding run"
+                {:repair-packets (mapv :packet-id pending-repairs)}))
+     plan)))
 (defn plan-wave [ctx wave limit prior]
   (let [task (format "W%03d-PLAN" wave)
-        text (prompt ctx :plan {:BRIEF_LIMIT limit :SNAPSHOT (snapshot ctx)
+        pending-repairs (if (= 1 wave) (pending-cross-run-repairs ctx) [])
+        pending-context
+        (when (seq pending-repairs)
+          (str "\n# Mandatory terminal repairs from the preceding run\n\n"
+               "The following frozen packet IDs are evidence pointers, never "
+               "parent_packet_ids or progress. Allocate a direct endpoint brief "
+               "whose inputs name one packet ID, implement its exact smallest-repair, "
+               "and satisfy its reopening-test against the unchanged goal.\n\n"
+               (pretty pending-repairs) "\n"))
+        text (prompt ctx :plan {:BRIEF_LIMIT limit
+                                :SNAPSHOT (str (snapshot ctx) pending-context)
                                 :PACKET_INDEX (pretty (packet-index prior))})]
     (invoke ctx :plan task text
             {:request {:brief-limit limit}
-             :validate #(validate-plan (:goal ctx) (:data %) wave limit prior)})))
+             :validate #(validate-plan (:goal ctx) (:data %) wave limit prior
+                                       pending-repairs)})))
 (defn validate-verifier [value]
   (guard (= (= "PASS" (:verdict value)) (nil? (:failure value)))
          "Verifier verdict and failure record disagree")
+  (guard (#{"OPEN" "CANDIDATE"} (:endpoint_disposition value))
+         "Verifier omitted endpoint disposition")
+  (when (= "CANDIDATE" (:endpoint_disposition value))
+    (guard (and (= "PASS" (:verdict value))
+                (nil? (:failure value))
+                (#{"proved-lemma" "refuted" "known-theorem"
+                   "computational-evidence"}
+                 (:claim_status value)))
+           "Endpoint candidate is not a complete independently passing claim"))
   value)
+(defn endpoint-candidates [packets]
+  (filterv #(= "CANDIDATE" (get-in % [:verify :endpoint_disposition]))
+           packets))
 (defn packet-view [ctx packet]
-  (assoc (select-keys packet [:id :brief :build :verify])
+  (assoc (select-keys packet [:id :brief :build :verify :conversations])
          :artifacts (mapv #(update % :path (fn [rel] (path (child (:run ctx) rel))))
                           (:artifacts packet))))
 (defn freeze-packet [ctx wave brief plan build verify]
@@ -337,26 +444,55 @@
                            :path (relative (:run ctx) file)
                            :sha256 (sha256-file file)})
                         (:artifacts build))
-        packet {:wave wave :brief brief :build (:data build) :verify (:data verify)
-                :artifacts artifacts
-                :calls {:plan (get-in plan [:request :call])
-                        :build (get-in build [:request :call])
-                        :verify (get-in verify [:request :call])}}
+        conversation (thread-id (:dir build))
+        packet (cond->
+                {:wave wave :brief brief :build (:data build) :verify (:data verify)
+                 :artifacts artifacts
+                 :calls {:plan (get-in plan [:request :call])
+                         :build (get-in build [:request :call])
+                         :verify (get-in verify [:request :call])}}
+                 conversation (assoc :conversations {:build conversation}))
         packet (assoc packet :id (packet-id packet))
         file (child (:run ctx) "packets" (format "W%03d-%s.edn" wave (:id brief)))]
     (guard (not (fs/exists? file)) "Packet already exists" {:brief (:id brief)})
     (write-edn file packet)
     (load-packet (:run ctx) file)))
+(defn repair-lineage [ctx wave brief parents]
+  (let [same-run
+        (for [packet parents
+              :when (= "REPAIR" (get-in packet [:verify :verdict]))]
+          {:packet-id (:id packet)
+           :source :same-run
+           :conversation-id (get-in packet [:conversations :build])
+           :complete-candidate (packet-view ctx packet)
+           :smallest-repair (get-in packet [:verify :failure :smallest_repair])
+           :reopening-test (get-in packet [:verify :failure :reopening_test])})
+        cross-run
+        (when (= 1 wave)
+          (for [repair (pending-cross-run-repairs ctx)
+                :when (brief-names-repair? brief repair)]
+            (assoc repair :source :preceding-run)))
+        lineages (vec (concat same-run cross-run))]
+    (guard (<= (count lineages) 1)
+           "A repair brief ambiguously names multiple builder lineages"
+           {:brief (:id brief) :repair-packets (mapv :packet-id lineages)})
+    (first lineages)))
 (defn run-branch [ctx wave brief plan prior]
   (let [prefix (format "W%03d-%s" wave (:id brief))
         parents (mapv (into {} (map (juxt :id identity) prior))
                       (:parent_packet_ids brief))
-        frozen {:brief brief :parents (mapv #(packet-view ctx %) parents)}
+        lineage (repair-lineage ctx wave brief parents)
+        frozen (cond-> {:brief brief :parents (mapv #(packet-view ctx %) parents)}
+                 lineage (assoc :repair_lineage lineage))
         build (invoke ctx :build (str prefix "-BUILD")
                       (prompt ctx :build
                               {:TARGET (snapshot-text ctx "target") :GOAL (pr-str (:goal ctx))
                                :MEMORY (memory-context ctx)
-                               :BRIEF (pretty frozen)}))
+                               :BRIEF (pretty frozen)})
+                      (cond-> {}
+                        (:conversation-id lineage)
+                        (assoc :request
+                               {:conversation-id (:conversation-id lineage)})))
         packet (assoc frozen :build (:data build)
                       :build_artifacts
                       (mapv (fn [file] {:path (path file) :sha256 (sha256-file file)})
@@ -408,26 +544,64 @@
                                  []))))}))
 (defn candidate-root [dir] (child dir "candidate" "engine"))
 (defn prepare-candidate [dir] (copy-tree engine-root (candidate-root dir)))
+(defn repair-handoff [ctx packet]
+  {:packet-id (:id packet)
+   :source-run-id (get-in ctx [:manifest :run-id])
+   :goal-sha256 (get-in ctx [:manifest :goal-sha256])
+   :wave (:wave packet)
+   :objective (get-in packet [:brief :objective])
+   :endpoint-edge (get-in packet [:brief :endpoint_edge])
+   :first-open-line (get-in packet [:brief :first_open_line])
+   :completion-criteria (get-in packet [:brief :completion_criteria])
+   :conversation-id (get-in packet [:conversations :build])
+   :complete-candidate
+   {:brief (:brief packet)
+    :build (:build packet)
+    :verify (:verify packet)
+    :artifacts (:artifacts packet)}
+   :smallest-repair (get-in packet [:verify :failure :smallest_repair])
+   :reopening-test (get-in packet [:verify :failure :reopening_test])})
 (defn publish-local-memory [ctx memory]
-  (when memory
-    (let [problem-id (:problem-id (:manifest ctx))
-          file (local-memory-file problem-id)
-          before (local-memory problem-id)
-          run-id (:run-id (:manifest ctx))
-          record {:run-id run-id :at (now)
-                  :evidence-root (str "runs/" run-id)
-                  :version (get-in ctx [:manifest :version])
-                  :changes (get-in memory [:data :changes])}
-          runs (:runs before)
-          after (if (some #(= run-id (:run-id %)) runs)
-                  before
-                  (assoc before :runs (vec (take-last 32 (conj (vec runs) record)))))]
-      (write-edn file after)
-      file)))
-(defn write-close [ctx stop memory reflection]
+  (let [problem-id (:problem-id (:manifest ctx))
+        file (local-memory-file problem-id)
+        before (local-memory problem-id)
+        run-id (:run-id (:manifest ctx))
+        packets (completed-packets ctx)
+        unconsumed
+        (remove (fn [repair]
+                  (some #(brief-names-repair? (:brief %) repair) packets))
+                (pending-cross-run-repairs ctx))
+        current (map #(repair-handoff ctx %) (open-repairs packets))
+        pending-repairs
+        (reduce (fn [result repair]
+                  (if (some #(= (:packet-id repair) (:packet-id %)) result)
+                    result
+                    (conj result repair)))
+                [] (concat unconsumed current))
+        record {:run-id run-id :at (now)
+                :evidence-root (str "runs/" run-id)
+                :version (get-in ctx [:manifest :version])
+                :changes (or (get-in memory [:data :changes]) [])
+                :pending-repairs pending-repairs}
+        runs (:runs before)
+        after (if (some #(= run-id (:run-id %)) runs)
+                before
+                (assoc before :runs (vec (take-last 32 (conj (vec runs) record)))))]
+    (write-edn file after)
+    file))
+(defn endpoint-record [ctx packets]
+  (when-let [candidates (seq (endpoint-candidates packets))]
+    {:status :candidate
+     :admission :pending
+     :packet-ids (mapv :id candidates)
+     :mechanisms (get-in (read-edn (child (:input ctx) "problem.edn"))
+                         [:admission :mechanisms])}))
+(defn write-close [ctx packets stop memory reflection]
   (let [file (child (:run ctx) "close.edn")
         result #(when % {:call (get-in % [:request :call]) :result (:data %)})
         value (cond-> {:stop stop :ended_at (now)}
+                (seq (endpoint-candidates packets))
+                (assoc :endpoint (endpoint-record ctx packets))
                 memory (assoc :memory (result memory))
                 reflection (assoc :reflection (result reflection)))]
     (if (fs/regular-file? file)
@@ -443,7 +617,7 @@
             needed (cond reflection0 0 memory0 1 :else 2)]
         (if (and (pos? needed)
                  (or (< (remaining-calls ctx) needed) (zero? (remaining-ms ctx))))
-          (write-close ctx stop memory0 reflection0)
+          (write-close ctx packets stop memory0 reflection0)
           (let [memory (or memory0
                            (invoke ctx :remember "MEMORY"
                                    (prompt ctx :remember
@@ -469,7 +643,7 @@
                                            :CANDIDATE_DIR
                                            (path (candidate-root dir))}))
                                        {:prepare prepare-candidate}))]
-            (write-close ctx stop memory reflection)))))))
+            (write-close ctx packets stop memory reflection)))))))
 (defn assert-run [ctx]
   (guard (= (or (:version-sha256 (:manifest ctx))
                 (:engine_hash (:manifest ctx)))
@@ -492,7 +666,10 @@
             plan (complete-call
                   ctx task
                   #(validate-plan (:goal ctx) (:data %) wave
-                                  (get-in % [:request :brief-limit]) prior))
+                                  (get-in % [:request :brief-limit]) prior
+                                  (if (= 1 wave)
+                                    (pending-cross-run-repairs ctx)
+                                    [])))
             current (vec (get by-wave wave []))]
         (if-not plan
           (do (guard (not-any? #(>= (:wave %) wave) packets)
@@ -521,6 +698,8 @@
         (loop []
           (let [{:keys [wave prior packets plan missing]} (run-state ctx)]
             (cond
+              (seq (endpoint-candidates packets))
+              (finish packets :endpoint-candidate)
               (zero? (call-ms ctx :plan)) (finish packets :wall-time)
               (and (nil? plan) (<= (remaining-calls ctx) 2))
               (finish packets :invocation-budget)
@@ -535,20 +714,29 @@
                       (recur)))))))
         (catch Exception error
           (if-let [stop (:stop (ex-data error))]
-            (finish (completed-packets ctx) stop)
+            (let [packets (completed-packets ctx)]
+              (finish packets (if (seq (endpoint-candidates packets))
+                                :endpoint-candidate
+                                stop)))
             (throw error)))))))
 (defn run-result [id run overrides] {:run-id id :run-path (path run)
                                      :close (continue-run (context run overrides))})
-(defn start-run [problem-id goal-path overrides]
+(defn start-run [goal-path overrides]
   (validate-engine)
-  (let [problem (find-problem problem-id) goal (validate-goal problem goal-path)
+  (let [goal0 (resolve-goal goal-path) problem-id (get-in goal0 [:data :problem])
+        _ (guard (string? problem-id) "Goal has no valid problem ID")
+        problem (find-problem problem-id) goal (validate-goal problem goal0)
+        expected-goal (System/getenv "POLYA_FORGE_GOAL_SHA256")
+        _ (when expected-goal
+            (guard (= expected-goal (:sha256 goal))
+                   "Launcher supplied the wrong goal hash"))
         id (or (System/getenv "POLYA_FORGE_RUN_ID")
-               (str (run-stamp) "_" (format "%06d" (mod (System/nanoTime) 1000000))
-                    "_" problem-id "_" (slug (get-in goal [:data :id]))))
+               (str (UUID/randomUUID)))
         _ (guard (re-matches #"[A-Za-z0-9][A-Za-z0-9_.+-]*" id)
                  "Launcher supplied an invalid run ID")
         run (ensure-dir (child runs-root id)) input (create-input problem goal run)
         manifest {:format-version 1 :run-id id :problem-id problem-id
+                  :goal-sha256 (:sha256 goal)
                   :started-at (now)
                   :deadline (+ (System/currentTimeMillis)
                                (* 60000 (get-in goal [:data :budget :wall-minutes])))

@@ -71,6 +71,15 @@ experiment, failed steps, assumptions, verification still needed, exact claim
 status, and next actions. The engine preserves the structured response and raw
 event log inside the local run.
 
+## Optional solver tools
+
+When a run is launched through `bb solver-exec`, its `PATH` contains the pinned
+repo-local Python solver environment. Builders may use `python`/`python3` with
+SymPy, Z3, OR-Tools CP-SAT, SciPy, and NetworkX. Detect availability before use,
+keep generated or binary solver state under the attempt's `transient/`
+directory, and report solver conclusions as computational evidence unless an
+independent proof and the problem's admission gate establish more.
+
 ## Pull requests
 
 Research contributions and engine changes must use separate pull requests.

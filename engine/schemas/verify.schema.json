@@ -2,9 +2,10 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["verdict", "claim_status", "audit", "evidence", "first_open_or_invalid_line", "failure"],
+  "required": ["verdict", "endpoint_disposition", "claim_status", "audit", "evidence", "first_open_or_invalid_line", "failure"],
   "properties": {
     "verdict": {"enum": ["PASS", "REPAIR", "FAIL", "QUARANTINE"]},
+    "endpoint_disposition": {"enum": ["OPEN", "CANDIDATE"]},
     "claim_status": {"enum": ["question", "heuristic", "conjecture", "proved-lemma", "known-theorem", "computational-evidence", "refuted", "unresolved"]},
     "audit": {"type": "string", "pattern": ".+"},
     "evidence": {"type": "array", "items": {"type": "string"}},

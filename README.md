@@ -1,7 +1,29 @@
 # Pólya Forge at Home
 
-Pólya Forge runs bounded, auditable research campaigns against exact
-mathematical goals. It does not decide that a proof is true.
+Pólya Forge is a local-first harness for running bounded, auditable AI
+research campaigns against exact mathematical goals. It is designed for
+researchers who want model-assisted exploration without treating a plausible
+completion—or model consensus—as a proof.
+
+The central idea is simple: freeze one precise endpoint, have independent
+workers attack that same missing implication, preserve every failure, and
+stop when the finite evidence budget is exhausted or a complete candidate is
+ready for external admission. Pólya Forge produces research evidence, not
+truth by consensus.
+
+What you get:
+
+- durable, parallel build attempts with fresh independent verification;
+- immutable prompts, packets, hashes, failures, and run history;
+- problem-local memory that preserves useful lessons without changing the
+  research objective;
+- fixed launcher gates, blinded regression benchmarks, and rollback for
+  evolved harnesses; and
+- sanitized, content-hashed research bundles suitable for sharing.
+
+The repository includes problem packs for the Clay Millennium Problems, a
+Poincaré reference pack, Erdős targets, and source-withheld benchmarks for
+testing the harness itself.
 
 The core loop is:
 
@@ -10,7 +32,10 @@ frozen problem + goal
         ↓
 PLAN exact briefs citing audited parent packets
         ↓
-parallel BUILD → independent VERIFY
+parallel durable BUILD → fresh independent VERIFY
+        │                         └ exact whole endpoint
+        │                                      ↓
+        │                         candidate pause for admission
         ↓
 freeze packets ───────────────→ PLAN again
                                       ↓ empty or budget
@@ -20,7 +45,11 @@ freeze packets ───────────────→ PLAN again
                                       ↓
                          inert one-file candidate
                                       ↓
-                    launcher test → activate next run
+                         compatibility gate
+                                      ↓
+                    probationary challenger (not active)
+                                      ↓
+             matched blinded benchmark → confirm or rollback
 ```
 
 There is no model progress gate. Verification fixes the evidence; the next
@@ -33,7 +62,11 @@ parallel fan-out, and wall time are finite.
 - Every brief preserves the goal's exact objective, endpoint edge, and first
   open line; fan-out changes strategy, not the target.
 - Exact inputs and the active engine version are hashed before research.
-- Every builder receives an independent verifier.
+- A fresh builder starts a durable Codex conversation. A repair descendant with
+  one exact rejected lineage continues that same conversation, but writes a new
+  immutable call directory and receives the verifier's complete defect record.
+- Every verification is a fresh independent conversation; a verifier can never
+  inherit the builder thread.
 - Failed and interrupted calls are preserved; resume creates a new call.
 - Every call keeps its exact prompt, raw Codex JSONL, and conversation ID when
   emitted; each run pins the immutable engine tree that produced them.
@@ -43,8 +76,12 @@ parallel fan-out, and wall time are finite.
 - Problem-memory reconciliation happens after research.
 - Harness reflection happens once, after memory, and cannot change its own run.
 - A candidate changes at most one engine file and cannot activate itself.
-- The launcher activates only between runs and rolls back process or invariant
-  failures.
+- A complete independently passing endpoint packet pauses the run and campaign
+  with admission still pending; it is not labeled solved.
+- Compatibility, authority, and lifecycle checks can install a probationary
+  challenger, but cannot make it active. The launcher promotes it only after a
+  matched blinded tournament yields strictly more independently admitted whole
+  endpoints than the champion; a tie or loss rolls it back.
 - `PASS` is an internal audit verdict, never mathematical admission.
 
 ## Run it
@@ -59,19 +96,31 @@ cannot be enforced.
 bb check
 bb test
 bb adopt
-bb run navier-stokes problems/navier-stokes/goals/my-goal.edn
-bb campaign 10 navier-stokes problems/navier-stokes/goals/my-goal.edn
+bb run problems/navier-stokes/goals/my-goal.edn
+bb campaign 10 problems/navier-stokes/goals/my-goal.edn
 bb campaign-resume <campaign-id>
+bb benchmark problems/blinded-endpoint-benchmark/goals/find-token.edn
+bb publish <run-id>
 ```
 
+The goal is the single public input. Its `:problem` field selects the matching
+problem pack, memory, and sandbox scope. The launcher hashes its exact bytes
+and records a write-protected run assignment before starting evolvable code.
 `campaign` runs sequentially and atomically records round IDs and exact version
 lineage under `.forge/campaigns/`. `campaign-resume` continues an interrupted
-campaign, first resuming any interrupted round. A tested candidate can become
-active only after its generating round closes, so it first affects the
-following round.
-The next run ID is persisted before launch. If a probationary engine fails, its
-run remains as evidence while the launcher restores the parent and retries that
-campaign round with a new run ID.
+campaign, first resuming any interrupted round. Reflection may install one
+compatibility-checked challenger after its generating round closes, but
+`.forge/CURRENT.edn` remains pinned to the champion. Further reflected
+descendants are rejected until that challenger is selected or rolled back.
+Every campaign pins its initial goal hash and problem. A started round resumes
+from frozen input; a new round starts only while the source goal still has that
+exact hash.
+The next run ID is persisted before launch. `bb benchmark` runs the champion
+and the one open challenger on the same fixed blinded goal, exact goal hash,
+and budget, restoring the benchmark memory baseline between arms. Only the
+fixed launcher's exhaustive endpoint gate supplies the benchmark admission
+bit. A benchmark error or non-winning challenger retains the champion and
+records rollback evidence.
 Inside a round, build→verify arms run in parallel and may use branch-local
 subagents; planning, memory, reflection, and successive rounds stay sequential
 because each consumes the frozen output before it.
@@ -95,6 +144,12 @@ If a process is interrupted:
 bb resume <run-id>
 ```
 
+If a verifier marks a complete endpoint `CANDIDATE`, the controller performs
+terminal memory and reflection, records `:admission :pending` in `close.edn`,
+and starts no further research wave. A containing campaign becomes
+`:candidate` and cannot be resumed. Submit the frozen packet unchanged to the
+admission mechanisms in `problem.edn`; neither `PASS` nor this pause is a solve.
+
 When a run is terminal:
 
 ```bash
@@ -116,10 +171,16 @@ engine/
   forge/bundle.clj       static export and inspection
   prompts/               five model-facing roles
   schemas/               five structured outputs
+kernel/launcher.clj      fixed authority, version, and sandbox boundary
+kernel/codex_app_server.clj
+                          durable builder-thread protocol boundary
 problems/<id>/            problem-local targets, goals, memory, and results
+test/fixtures/            synthetic controller data, separate from mathematics
 templates/goal.edn        bounded goal contract
 .forge/runs/<id>/         ignored append-only local evidence
+.forge/campaigns/         ignored resumable campaign journals
 .forge/exports/<id>/      ignored static bundles
+runs/<problem>/<uuid>/    public sanitized research bundles
 ```
 
 Git versions the public source, while the launcher snapshots each active
@@ -131,11 +192,13 @@ benchmark. A mutation that rewards partial-work volume or future usefulness is
 a regression.
 
 The launcher owns `.forge/CURRENT.edn`, immutable versions under
-`.forge/versions/`, and append-only `.forge/activations/`. It runs only fixed
-validation and smoke tests after a candidate's generating run closes,
-activates only for a later run, and restores the last known-good version after
-an invariant or process failure. The model's benchmark field is descriptive,
-never an executable command. Problem-local
+`.forge/versions/`, and append-only `.forge/activations/`. It runs fixed
+compatibility checks after a candidate's generating run closes and installs at
+most one challenger on probation without changing `CURRENT`. `bb benchmark`
+then confirms a strict admitted-endpoint win or records rollback; an all-zero
+or equal-score result retains the champion. The model's benchmark field is
+descriptive, never an executable command. The trusted tournament goal and
+admission predicate are launcher-owned inputs. Problem-local
 `.forge/memory/<problem-id>/INDEX.edn` carries candidate context across runs
 but never admits mathematics.
 
@@ -144,6 +207,12 @@ behavior-changing deltas. Full derivations, failures, prompts, raw events, and
 artifacts remain in the referenced `.forge/runs/<id>/` tree as searchable
 long-form memory. The problem pack's curated `memory/KEY_LEARNINGS.md` is the
 always-on layer.
+
+New runs use UUID identifiers. `bb publish <run-id>` validates the terminal
+research export in the fixed launcher, excludes raw process and harness data,
+and atomically copies the content-hashed bundle to
+`runs/<problem-id>/<run-uuid>/`. Repeating publication is idempotent only when
+the existing public bytes match the validated export.
 
 ## Truth boundary
 

@@ -1,0 +1,18 @@
+{:format-version 1
+ :id "overnight-counterexample"
+ :status :active
+ :problem "erdos-375"
+ :objective "Find and independently verify n>19000000000 and k>=3 such that n+1,...,n+k are composite but their prime-divisibility bipartite graph has no matching covering all k positions."
+ :deliverable "Exact n and k, complete factorizations and incidence graph, a Hall obstruction or deficient maximum-matching certificate, and an independent exact verification."
+ :endpoint-edge "The universal conjecture is disproved by one unconditional finite composite interval with no system of distinct prime divisors."
+ :first-open-line "There exist n>19000000000 and k>=3 for which n+1,...,n+k are all composite and no distinct primes p_i divide n+i for every 1<=i<=k."
+ :inputs ["The exact statement and reported computational boundary frozen in this problem pack"
+          "Exact integer factorization, matching, SAT/SMT, and executable computations inside the assigned attempt directory"
+          "Audited parent packets from this same goal, when present"]
+ :exclusions ["Searches at or below n=19000000000 presented as new progress"
+              "Probable-prime or incomplete-factorization certificates"
+              "Finite counterexample-free searches presented as proof"
+              "Unverified imported theorems, model consensus, novelty claims, or prize claims"]
+ :completion "A verifier that did not build the candidate exactly refactors every interval member, reconstructs the complete graph, and verifies a Hall obstruction or maximum matching smaller than k."
+ :kill "Stop each round when its finite invocation or 12-hour wall-time budget is exhausted, the planner emits no direct endpoint attack, or every proposed interval is independently refuted; preserve all failed candidates and bounded negative evidence."
+ :budget {:fanout 3 :invocations 96 :wall-minutes 720}}

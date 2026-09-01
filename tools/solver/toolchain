@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+repo_root="$(cd -- "$script_dir/../.." && pwd -P)"
+project_dir="$repo_root/tools/solver"
+environment_dir="$repo_root/.forge/toolchain"
+python_install_dir="$repo_root/.forge/python"
+python_bin="$environment_dir/bin/python"
+
+usage() {
+  printf '%s\n' \
+    "usage: tools/solver/toolchain install" \
+    "       tools/solver/toolchain check" \
+    "       tools/solver/toolchain exec <command> [args ...]" \
+    "       tools/solver/toolchain path"
+}
+
+need_environment() {
+  if [[ ! -x "$python_bin" ]]; then
+    printf 'solver environment is missing; run: bb solver-install\n' >&2
+    exit 2
+  fi
+}
+
+case "${1:-}" in
+  install)
+    command -v uv >/dev/null 2>&1 || {
+      printf 'uv is required to install the solver toolchain\n' >&2
+      exit 2
+    }
+    uv python install 3.12 --install-dir "$python_install_dir" --no-bin
+    managed_python="$(UV_PYTHON_INSTALL_DIR="$python_install_dir" \
+      uv python find 3.12 --managed-python)"
+    uv venv --clear --python "$managed_python" "$environment_dir"
+    UV_PROJECT_ENVIRONMENT="$environment_dir" \
+      uv sync --project "$project_dir" --frozen --no-dev \
+        --python "$managed_python"
+    "$python_bin" "$project_dir/smoke.py"
+    ;;
+  check)
+    need_environment
+    resolved_python="$("$python_bin" -c \
+      'import os, sys; print(os.path.realpath(sys.executable))')"
+    case "$resolved_python" in
+      "$python_install_dir"/*) ;;
+      *)
+        printf 'solver interpreter is outside the repo-local runtime; reinstall it\n' >&2
+        exit 2
+        ;;
+    esac
+    uv lock --project "$project_dir" --check --python 3.12
+    uv pip check --python "$python_bin"
+    "$python_bin" "$project_dir/smoke.py"
+    ;;
+  exec)
+    shift
+    need_environment
+    if [[ "$#" -eq 0 ]]; then
+      usage >&2
+      exit 2
+    fi
+    export PATH="$environment_dir/bin:$PATH"
+    exec "$@"
+    ;;
+  path)
+    need_environment
+    printf '%s\n' "$environment_dir/bin"
+    ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac

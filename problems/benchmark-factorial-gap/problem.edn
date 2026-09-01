@@ -1,0 +1,9 @@
+{:format-version 1
+ :id "benchmark-factorial-gap"
+ :title "Source-withheld historical benchmark C: factorial-divisibility logarithmic gaps"
+ :status :solved-benchmark
+ :official-source "withheld from BUILD; independent source and formal-proof auditors must pin it before admission"
+ :admission {:mechanisms #{:independent-proof-audit
+                           :historical-oracle-comparison
+                           :lean-replay
+                           :external-human-review}}}

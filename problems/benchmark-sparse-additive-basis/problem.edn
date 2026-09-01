@@ -1,0 +1,8 @@
+{:format-version 1
+ :id "benchmark-sparse-additive-basis"
+ :title "Source-withheld historical benchmark B: sparse additive bases"
+ :status :solved-benchmark
+ :official-source "withheld from BUILD; an independent auditor must pin it before admission"
+ :admission {:mechanisms #{:independent-proof-audit
+                           :historical-oracle-comparison
+                           :external-human-review}}}

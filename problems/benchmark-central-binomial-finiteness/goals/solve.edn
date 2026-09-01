@@ -1,0 +1,16 @@
+{:format-version 1
+ :id "solve-central-binomial-finiteness"
+ :problem "benchmark-central-binomial-finiteness"
+ :status :active
+ :objective "Determine the finiteness question by proving finiteness or by constructing and proving a valid infinite family of pairwise-distinct-index identities."
+ :deliverable "A complete self-contained proof, with an explicit family if the answer is negative, suitable for independent symbolic checking and a later blinded historical-oracle comparison."
+ :endpoint-edge "The exact finiteness question is closed only by a proof of finiteness or an explicit infinite family satisfying equality, positivity, pairwise distinctness, and infinitude."
+ :first-open-line "Construct and prove, or rule out, a complete answer to the stated central-binomial product finiteness question."
+ :inputs ["The frozen statement and elementary identities for binomial coefficients"
+          "Exact symbolic algebra or integer computation used only to discover and check a proof"]
+ :exclusions ["Historical-source lookup or catalog-number identification during BUILD"
+              "Finite numerical coincidences presented as an infinite-family proof"
+              "Novelty claims"]
+ :completion "A fresh verifier reconstructs every algebraic step and checks equality, positivity, pairwise distinctness, and infinitude; it may mark an endpoint candidate but the hidden historical audit remains pending."
+ :kill "Stop when the finite invocation or 12-hour wall-time budget is exhausted or no falsifiable direct attack remains; preserve exact failed families and their first invalid condition."
+ :budget {:fanout 2 :invocations 64 :wall-minutes 720}}

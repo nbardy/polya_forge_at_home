@@ -1,0 +1,8 @@
+{:format-version 1
+ :id "benchmark-central-binomial-finiteness"
+ :title "Source-withheld historical benchmark A: central-binomial product finiteness"
+ :status :solved-benchmark
+ :official-source "withheld from BUILD; an independent auditor must pin it before admission"
+ :admission {:mechanisms #{:independent-symbolic-proof-audit
+                           :historical-oracle-comparison
+                           :external-human-review}}}

@@ -6,7 +6,7 @@
 - Seven Millennium target maps
 - Bounded local Codex round
 - One-file inert harness candidate after each reflected terminal run
-- Between-run validation, activation record, and automatic rollback
+- Between-run compatibility/probation record without displacing the champion
 - Problem-local candidate memory across runs
 - Stage-boundary resume
 - Sanitized bundle export and static inspection
@@ -17,6 +17,8 @@
 - Intentional kill/reboot fixtures
 - Attempt-level salvage with new attempt IDs
 - Stronger process-tree cleanup
+- Durable single-lineage builder repair with fresh independent verification
+- Whole-endpoint candidate pause with admission still pending
 - Stable JSON event schema and migrations
 - Content-addressed snapshot store
 - Full regression replay of the original private Forge fixture
@@ -28,13 +30,17 @@
 - Research and engine PR templates
 - Duplicate claim detection
 - Maintainer signing and admission receipts
-- One solved benchmark pack with known-good and known-bad submissions
+- Expand the initial blinded solved endpoint into multiple known-good and
+  known-bad benchmark cases
+- Publish champion/challenger tournament receipts for external audit
 
 ## v0.4 — hardened recursive evolution
 
 - Signed successor engine packages
 - Cross-platform sandbox enforcement fixtures
-- Historical fixture tournaments and canary activation
+- Historical whole-endpoint fixture tournaments and canary activation
+- Promotion only from independently admitted endpoint wins; partial-candidate
+  metrics may steer research but do not break selection ties
 - Longitudinal evidence for prompt/topology changes
 
 ## v0.5 — distributed home swarm

@@ -1,0 +1,17 @@
+{:format-version 1
+ :id "find-token"
+ :status :active
+ :problem "blinded-endpoint-benchmark"
+ :objective "Find and independently verify the unique token in PF-0000 through PF-9999 whose UTF-8 SHA-256 digest is a132c0c9c4ec6aae5bacf2ddb9d57a32cf6730aedfd27d44a0b5c28697cde1a6."
+ :deliverable "The exact token, a complete deterministic enumeration record, and an independent exact recomputation confirming that it is the unique domain preimage."
+ :endpoint-edge "The synthetic endpoint is closed by one exact domain token whose full SHA-256 digest matches and whose uniqueness is independently checked over all 10000 tokens."
+ :first-open-line "There exists exactly one token PF-dddd with 0000<=dddd<=9999 whose exact UTF-8 SHA-256 digest is a132c0c9c4ec6aae5bacf2ddb9d57a32cf6730aedfd27d44a0b5c28697cde1a6."
+ :inputs ["The literal finite token domain and full digest frozen in this pack"
+          "Exact UTF-8 encoding and SHA-256 computation"
+          "Deterministic exhaustive enumeration inside the assigned attempt directory"]
+ :exclusions ["Embedding or importing an external plaintext oracle"
+              "Digest-prefix matches, probabilistic guesses, or partial-domain searches presented as completion"
+              "Builder self-verification, model agreement, or mathematical novelty claims"]
+ :completion "A verifier that did not build the candidate independently enumerates all 10000 tokens, finds exactly one full-digest match, and confirms that it is byte-for-byte the submitted token."
+ :kill "Stop when the finite invocation or wall-time budget is exhausted, the complete domain has been independently shown to contain no unique match, or no exact endpoint attack remains."
+ :budget {:fanout 2 :invocations 12 :wall-minutes 10}}

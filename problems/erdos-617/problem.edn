@@ -1,0 +1,8 @@
+{:format-version 1
+ :id "erdos-617"
+ :title "Erdős Problem 617"
+ :status :open
+ :official-source "https://www.erdosproblems.com/617"
+ :admission {:mechanisms #{:primary-source-fidelity-review
+                           :independent-exact-recomputation
+                           :external-human-review}}}

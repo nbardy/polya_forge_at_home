@@ -1,0 +1,17 @@
+{:format-version 1
+ :id "solve-sparse-additive-basis"
+ :problem "benchmark-sparse-additive-basis"
+ :status :active
+ :objective "Prove or disprove the universal sparse-additive-basis statement with every density and little-o quantifier explicit."
+ :deliverable "A self-contained complete proof; if negative, construct one density-zero set A and prove a uniform lower obstruction for every B satisfying A subset B+B."
+ :endpoint-edge "The universal statement is closed only by a proof for every density-zero A or by one fully proved counterexample A against every possible B."
+ :first-open-line "Construct and prove, or rule out, a complete quantified resolution of the sparse additive-basis statement."
+ :inputs ["The frozen definitions of natural density, sumset, and little-o"
+          "Self-contained constructions and exact asymptotic estimates developed inside the run"]
+ :exclusions ["Historical-source lookup during BUILD"
+              "Replacing every B by a restricted class of B"
+              "Finite-block or heuristic density evidence presented as an asymptotic proof"
+              "Novelty claims"]
+ :completion "A fresh verifier reconstructs the complete construction and all asymptotic quantifiers; it may mark an endpoint candidate, while the hidden historical audit remains pending."
+ :kill "Stop when the finite invocation or 12-hour wall-time budget is exhausted or no falsifiable direct endpoint attack remains; preserve the exact first failed quantifier or estimate."
+ :budget {:fanout 2 :invocations 80 :wall-minutes 720}}
