@@ -1,9 +1,9 @@
 # Pólya Forge at Home
 
-Pólya Forge is a local-first harness for running bounded, auditable AI
-research campaigns against exact mathematical goals. It is designed for
-researchers who want model-assisted exploration without treating a plausible
-completion—or model consensus—as a proof.
+Pólya Forge is a self-improving autonomous swarm for solving open math
+problems with AI through bounded, auditable research campaigns. It is designed
+for researchers who want model-assisted exploration without treating a
+plausible completion—or model consensus—as a proof.
 
 The central idea is simple: freeze one precise endpoint, have independent
 workers attack that same missing implication, preserve every failure, and
