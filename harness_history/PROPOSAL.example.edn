@@ -1,0 +1,15 @@
+{:format-version 1
+ :proposal-uuid "00000000-0000-4000-8000-000000000000"
+ :parent-engine-sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+ :result-engine-sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+ :scope {:kind :family
+         :problems ["example-problem-a" "example-problem-b"]}
+ :changed-file "engine/prompts/plan.md"
+ :hypothesis "One falsifiable statement about endpoint performance."
+ :evidence-run-uuids ["00000000-0000-4000-8000-000000000001"]
+ :benchmark {:goal "problems/example/goals/benchmark.edn"
+             :champion-admitted-endpoints 0
+             :challenger-admitted-endpoints 1}
+ :regression-risks ["One named risk."]
+ :decision :proposed}
+

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Reframed the public entry point around donated idle agent compute: one
+  command runs an Erdős campaign, and `bb propose <run-uuid>` publishes only
+  its sanitized bundle on a dedicated GitHub proposal branch.
+- Added the UUID proposal protocol, separate research and harness PR templates,
+  shared harness-history receipts, and an independent research-lead prompt for
+  deduplication, synthesis, scoped learning, and merge decisions.
+
 - Make nested model calls ignore ambient Codex exec-policy rule files. Each
   call already receives the run-frozen repository and problem rules through
   its local `AGENTS.md`; attempting to read `~/.codex/rules` failed closed

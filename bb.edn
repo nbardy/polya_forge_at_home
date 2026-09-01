@@ -19,6 +19,8 @@
           :task (apply shell "bb" "forge.clj" "export" *command-line-args*)}
   publish {:doc "Publish a sanitized research run under runs/<problem>/<uuid>"
            :task (apply shell "bb" "forge.clj" "publish" *command-line-args*)}
+  propose {:doc "Publish one research run and open a narrowly scoped GitHub PR"
+           :task (apply shell "tools/propose" *command-line-args*)}
   solver-install {:doc "Install the pinned repo-local mathematical solver environment"
                   :task (shell "tools/solver/toolchain" "install")}
   solver-check {:doc "Check the pinned solver environment and run smoke certificates"

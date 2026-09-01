@@ -1,0 +1,69 @@
+#!/bin/sh
+set -eu
+
+if [ "$#" -ne 1 ]; then
+  echo "usage: bb propose <run-uuid>" >&2
+  exit 64
+fi
+
+run_id=$1
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+
+if [ -n "$(git status --porcelain)" ]; then
+  echo "FORGE ERROR: proposal requires a clean working tree" >&2
+  exit 65
+fi
+
+if ! command -v gh >/dev/null 2>&1; then
+  echo "FORGE ERROR: GitHub CLI (gh) is required to open a proposal PR" >&2
+  exit 69
+fi
+
+gh auth status >/dev/null
+bb publish "$run_id"
+
+proposal_path=$(find runs -mindepth 2 -maxdepth 2 -type d -name "$run_id" -print)
+proposal_count=$(printf '%s\n' "$proposal_path" | awk 'NF {count++} END {print count+0}')
+if [ "$proposal_count" -ne 1 ]; then
+  echo "FORGE ERROR: expected one published bundle for $run_id" >&2
+  exit 66
+fi
+
+problem_id=$(basename "$(dirname "$proposal_path")")
+branch="proposal/research/$problem_id/$run_id"
+git switch -c "$branch"
+git add "$proposal_path"
+
+if git diff --cached --quiet; then
+  echo "FORGE ERROR: $proposal_path is already committed" >&2
+  exit 67
+fi
+
+git commit -m "Propose $problem_id research $run_id"
+git push -u origin "$branch"
+
+body_file=$(mktemp "${TMPDIR:-/tmp}/polya-forge-proposal.XXXXXX")
+trap 'rm -f "$body_file"' EXIT HUP INT TERM
+cat >"$body_file" <<EOF
+## Research proposal
+
+- Problem: $problem_id
+- Run UUID: $run_id
+- Bundle: \`$proposal_path\`
+- Requested outcome: review under \`docs/PROPOSALS.md\`
+
+## Checks
+
+- [ ] This PR contains research evidence only.
+- [ ] \`bb inspect\` passes on the bundle.
+- [ ] Claim statuses, failures, and unresolved checks remain explicit.
+- [ ] Repository merge is not represented as mathematical admission.
+EOF
+
+gh pr create \
+  --base main \
+  --head "$branch" \
+  --title "Research proposal: $problem_id / $run_id" \
+  --body-file "$body_file"
+

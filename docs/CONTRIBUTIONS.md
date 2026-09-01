@@ -23,6 +23,17 @@ after memory. It contains no mathematical progress receipt.
 
 Research results and engine changes must use separate pull requests.
 
+To publish and open a research PR from a clean checkout:
+
+```bash
+bb propose <run-uuid>
+```
+
+This validates the terminal research export, copies only the sanitized bundle
+to `runs/<problem>/<uuid>/`, commits that path on a proposal branch, pushes it,
+and opens a GitHub PR. Proposal and research-lead decision rules live in
+[`PROPOSALS.md`](PROPOSALS.md).
+
 ## Static inspection
 
 Each bundle has one `bundle.json` declaring its kind, run ID, engine hash, and
