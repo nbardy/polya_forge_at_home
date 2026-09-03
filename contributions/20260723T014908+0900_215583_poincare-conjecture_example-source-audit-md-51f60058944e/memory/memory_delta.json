@@ -1,0 +1,9 @@
+{
+  "run_summary" : "[unresolved] No mathematical research was executed or assessed. `manager/result.json` withheld brief allocation because the example goal was inactive and lacked a maintainer-supplied primary source, named lemma, edition, page locator, and content hash. `RUN.json` records `brief_count: 0`, and the supplied branch list is empty. No claim maturity changes, supersessions, or failure erasures are proposed.",
+  "helpful_prior_work" : [ ],
+  "always_on_candidates" : [ ],
+  "demotions" : [ ],
+  "searchable_additions" : [ "[unresolved] Add a problem-local searchable no-brief record keyed by `POINCARE-SOURCE-AUDIT-EXAMPLE`, `inactive-goal`, `missing-primary-source`, `missing-lemma-pin`, and run `20260723T014908+0900_215583_poincare-conjecture_example-source-audit-md`. Use stable pointers to `manager/result.json` and `RUN.json`; preserve the disposition as a failed-to-launch audit record rather than a mathematical result." ],
+  "quarantines" : [ ],
+  "withholding_rules" : [ "[unresolved] Withhold any source-faithful lemma statement, dependency map, planted-fault result, or mathematical admission from this run until an explicit launch supplies a lawfully obtained primary source with named lemma, edition, exact page/content hash, and an independent verifier disposition.", "[known-theorem] Withhold all novelty, re-solution, and prize-progress interpretations permanently for this benchmark; stable evidence pointers are `snapshot/target.md`, `snapshot/goal.md`, and the endpoint recorded in `manager/result.json`." ]
+}
